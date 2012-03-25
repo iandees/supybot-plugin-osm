@@ -284,6 +284,7 @@ class OSM(callbacks.Plugin):
 
         author = first_entry.findtext('{http://www.w3.org/2005/Atom}author/{http://www.w3.org/2005/Atom}name')
         timestamp = first_entry.findtext('{http://www.w3.org/2005/Atom}updated')
+        entry_id = first_entry.findtext('{http://www.w3.org/2005/Atom}id')
 
         if author != username:
             # It looks like there's a bug where the API will give back the most recent user's edit feed
@@ -291,9 +292,12 @@ class OSM(callbacks.Plugin):
             irc.error('Unknown username. Was "%s" but asked for "%s"' % (author, username))
             return
 
+        # Strip off the word "Changeset " from the title to get the number
+        changeset_id = entry_id[46:]
+
         updated = self.isoToTimestamp(timestamp)
 
-        response = "User %s last edited %s" % (author, self.prettyDate(updated))
+        response = "User %s last edited %s with changeset %s" % (author, self.prettyDate(updated), changeset_id)
         
         irc.reply(response.encode('utf-8'))
     lastedit = wrap(last_edit, ['anything'])
