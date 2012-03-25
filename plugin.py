@@ -266,7 +266,7 @@ class OSM(callbacks.Plugin):
     def last_edit(self, irc, msg, args, username):
         """<username>
         
-        Shows information about the specified OSM relation ID."""
+        Shows information about the last edit for the given user."""
         baseUrl = "http://osm.org"
 
         if not username:
