@@ -76,8 +76,7 @@ class OSM(callbacks.Plugin):
             irc.error('Node %s was not found.' % (node_id))
             return
 
-        tree = ElementTree()
-        tree.parse(xml)
+        tree = ElementTree(file=xml)
         node_element = tree.find("node")
 
         username = node_element.attrib['user']
@@ -125,8 +124,7 @@ class OSM(callbacks.Plugin):
             irc.error('Way %s was not found.' % (way_id))
             return
 
-        tree = ElementTree()
-        tree.parse(xml)
+        tree = ElementTree(file=xml)
         way_element = tree.find('way')
 
         username = way_element.attrib['user']
@@ -178,8 +176,7 @@ class OSM(callbacks.Plugin):
             irc.error('Relation %s was not found.' % (relation_id))
             return
 
-        tree = ElementTree()
-        tree.parse(xml)
+        tree = ElementTree(file=xml)
         relation_element = tree.find('relation')
 
         username = relation_element.attrib['user']
@@ -231,9 +228,7 @@ class OSM(callbacks.Plugin):
             irc.error('Username %s was not found.' % (username))
             return
 
-        tree = ElementTree()
-        tree.parse(xml)
-        first_entry = tree.find('feed/entry')
+        tree = ElementTree(file=xml)
 
         author = first_entry.find('author/name')
 
