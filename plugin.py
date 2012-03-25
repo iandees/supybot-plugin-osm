@@ -14,7 +14,7 @@ import supybot.callbacks as callbacks
 import datetime
 import calendar
 import urllib2
-from xml.dom.minidom import parse
+from xml.etree.cElementTree import ElementTree
 
 class OSM(callbacks.Plugin):
     """Add the help for "@plugin help OSM" here
@@ -76,18 +76,19 @@ class OSM(callbacks.Plugin):
             irc.error('Node %s was not found.' % (node_id))
             return
 
-        dom = parse(xml)
-        node_element = dom.getElementsByTagName('node')[0]
+        tree = ElementTree()
+        tree.parse(xml)
+        node_element = tree.find("node")
 
-        username = node_element.getAttribute('user')
-        version = node_element.getAttribute('version')
-        timestamp = self.isoToTimestamp(node_element.getAttribute('timestamp'))
+        username = node_element.attrib['user']
+        version = node_element.attrib['version']
+        timestamp = self.isoToTimestamp(node_element.attrib['timestamp'])
 
         tag_strings = []
-        tag_elems = node_element.getElementsByTagName('tag')
+        tag_elems = node_element.findall('tag')
         for tag_elem in tag_elems:
-            k = tag_elem.getAttribute('k')
-            v = tag_elem.getAttribute('v')
+            k = tag_elem.attrib('k')
+            v = tag_elem.attrib('v')
             tag_strings.append("%s=%s" % (k, v))
 
         tag_strings = sorted(tag_strings, key=self.tagKeySortKey)
@@ -124,18 +125,19 @@ class OSM(callbacks.Plugin):
             irc.error('Way %s was not found.' % (way_id))
             return
 
-        dom = parse(xml)
-        way_element = dom.getElementsByTagName('way')[0]
+        tree = ElementTree()
+        tree.parse(xml)
+        way_element = tree.find('way')
 
-        username = way_element.getAttribute('user')
-        version = way_element.getAttribute('version')
-        timestamp = self.isoToTimestamp(way_element.getAttribute('timestamp'))
+        username = way_element.attrib['user']
+        version = way_element.attrib['version']
+        timestamp = self.isoToTimestamp(way_element.attrib['timestamp'])
 
         tag_strings = []
-        tag_elems = way_element.getElementsByTagName('tag')
+        tag_elems = way_element.findall('tag')
         for tag_elem in tag_elems:
-            k = tag_elem.getAttribute('k')
-            v = tag_elem.getAttribute('v')
+            k = tag_elem.attrib['k']
+            v = tag_elem.attrib['v']
             tag_strings.append("%s=%s" % (k, v))
 
         tag_strings = sorted(tag_strings, key=self.tagKeySortKey)
@@ -147,7 +149,7 @@ class OSM(callbacks.Plugin):
         elif len(tag_strings) > 1:
             tag_str = 'tags %s' % (', '.join(tag_strings))
 
-        nd_refs = way_element.getElementsByTagName('nd')
+        nd_refs = way_element.findall('nd')
         nd_refs_str = "NO NODES"
         if len(nd_refs) == 1:
             nd_refs_str = "1 NODE"
@@ -176,18 +178,19 @@ class OSM(callbacks.Plugin):
             irc.error('Relation %s was not found.' % (relation_id))
             return
 
-        dom = parse(xml)
-        relation_element = dom.getElementsByTagName('relation')[0]
+        tree = ElementTree()
+        tree.parse(xml)
+        relation_element = tree.find('relation')
 
-        username = relation_element.getAttribute('user')
-        version = relation_element.getAttribute('version')
-        timestamp = self.isoToTimestamp(relation_element.getAttribute('timestamp'))
+        username = relation_element.attrib['user']
+        version = relation_element.attrib['version']
+        timestamp = self.isoToTimestamp(relation_element.attrib['timestamp'])
 
         tag_strings = []
-        tag_elems = relation_element.getElementsByTagName('tag')
+        tag_elems = relation_element.findall('tag')
         for tag_elem in tag_elems:
-            k = tag_elem.getAttribute('k')
-            v = tag_elem.getAttribute('v')
+            k = tag_elem.attrib['k']
+            v = tag_elem.attrib['v']
             tag_strings.append("%s=%s" % (k, v))
 
         tag_strings = sorted(tag_strings, key=self.tagKeySortKey)
@@ -199,7 +202,7 @@ class OSM(callbacks.Plugin):
         elif len(tag_strings) > 1:
             tag_str = 'tags %s' % (', '.join(tag_strings))
 
-        members = relation_element.getElementsByTagName('member')
+        members = relation_element.findall('member')
         members_str = "NO MEMBERS"
         if len(members) == 1:
             members_str = "1 member"
@@ -211,6 +214,41 @@ class OSM(callbacks.Plugin):
         
         irc.reply(response.encode('utf-8'))
     relation = wrap(relation, ['int'])
+
+    def last_edit(self, irc, msg, args, username):
+        """<username>
+        
+        Shows information about the specified OSM relation ID."""
+        baseUrl = "http://osm.org"
+
+        if not username:
+            irc.error('You forgot to give me a username.')
+            return
+
+        try:
+            xml = urllib2.urlopen('%s/user/%s/edits/feed' % (baseUrl, username))
+        except urllib2.HTTPError as e:
+            irc.error('Username %s was not found.' % (username))
+            return
+
+        tree = ElementTree()
+        tree.parse(xml)
+        first_entry = tree.find('feed/entry')
+
+        author = first_entry.find('author/name')
+
+        if author != username:
+            # It looks like there's a bug where the API will give back the most recent user's edit feed
+            # instead of a 404
+            irc.error('Unknown username. Was "%s" but asked for "%s"' % (author, username))
+            return
+
+        updated = self.isoToTimestamp(first_entry.getElementsByTagName('updated').text)
+
+        response = "User %s last edited %s" % (author, self.prettyDate(updated))
+        
+        irc.reply(response.encode('utf-8'))
+    lastedit = wrap(last_edit, ['anything'])
 
 Class = OSM
 
