@@ -229,8 +229,10 @@ class OSM(callbacks.Plugin):
             return
 
         tree = ElementTree(file=xml)
+        first_entry = tree.find('{http://www.w3.org/2005/Atom}entry')
 
-        author = first_entry.find('author/name')
+        author = first_entry.findtext('{http://www.w3.org/2005/Atom}author/{http://www.w3.org/2005/Atom}name')
+        timestamp = first_entry.findtext('{http://www.w3.org/2005/Atom}updated')
 
         if author != username:
             # It looks like there's a bug where the API will give back the most recent user's edit feed
@@ -238,7 +240,7 @@ class OSM(callbacks.Plugin):
             irc.error('Unknown username. Was "%s" but asked for "%s"' % (author, username))
             return
 
-        updated = self.isoToTimestamp(first_entry.getElementsByTagName('updated').text)
+        updated = self.isoToTimestamp(timestamp)
 
         response = "User %s last edited %s" % (author, self.prettyDate(updated))
         
