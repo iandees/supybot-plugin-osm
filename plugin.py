@@ -8,22 +8,115 @@
 import supybot.utils as utils
 from supybot.commands import *
 import supybot.plugins as plugins
+import supybot.ircmsgs as ircmsgs
 import supybot.ircutils as ircutils
 import supybot.callbacks as callbacks
+import supybot.schedule as schedule
+import supybot.world as world
+import supybot.log as log
+
+import traceback
 
 import datetime
 import calendar
 import urllib2
 from xml.etree.cElementTree import ElementTree
+import os
 
 class OSM(callbacks.Plugin):
     """Add the help for "@plugin help OSM" here
     This should describe *how* to use this plugin."""
     threaded = True
 
+    def __init__(self, irc):
+        self.__parent__ = super(OSM, self)
+        self.__parent__.__init__(irc)
+        self.last_update_agreed = 0
+        self._start_polling()
+        self.irc = irc
+
+    def die(self):
+        self._stop_polling()
+        self.__parent__.die()
+
+    def _start_polling(self):
+        self.poll_period = 300
+        schedule.addPeriodicEvent(self._poll, self.poll_period, now=True, name=self.name())
+
+    def _stop_polling(self):
+        schedule.removeEvent(self.name())
+
+    def _poll(self):
+        try:
+            # Grab the latest users_agreed
+            log.info('Starting to fetch a new users_agreed.txt')
+            req = urllib2.Request('http://planet.openstreetmap.org/users_agreed/users_agreed.txt')
+            if self.last_update_agreed:
+                req.add_header("If-Modified-Since", self.last_update_agreed)
+            
+            try:
+                resp = urllib2.urlopen(req)
+                self.last_update_agreed = resp.info().getheader("Last-Modified")
+                log.info('Last modified at %s' % (self.last_update_agreed))
+
+                # Write it out to a new file
+                new_file = open('users_agreed.new.txt', 'w')
+                new_file.write(resp.read())
+                new_file.close()
+                log.info('Finished writing to users_agreed.new.txt')
+            except urllib2.HTTPError as e:
+                if e.code == 304:
+                    log.info('users_agreed not modified this time around')
+                    return
+                else:
+                    raise e
+
+            users_newly_agreed = []
+            users_newly_disagreed = []
+
+            # Compare to the one we already have
+            if os.path.exists('users_agreed.txt'):
+                new_file = open('users_agreed.new.txt', 'r')
+                old_file = open('users_agreed.txt', 'r')
+                newset = set(new_file.readlines())
+                oldset = set(old_file.readlines())
+                old_file.close()
+                new_file.close()
+
+                users_newly_agreed = newset - oldset
+                users_newly_disagreed = oldset - newset
+
+                # Strip whitespace and convert to ints
+                users_newly_agreed = [int(x) for x in users_newly_agreed]
+                users_newly_disagreed = [int(x) for x in users_newly_disagreed]
+
+            log.info('New agreers: %s, No longer agreeing: %s' % (users_newly_agreed, users_newly_disagreed))
+
+            # Move the new file over to the "old" spot
+            os.rename('users_agreed.new.txt', 'users_agreed.txt')
+
+            # Look up all the usernames
+            usernames = {}
+            for userid in set(users_newly_agreed + users_newly_disagreed):
+                req = urllib2.urlopen('http://tools.geofabrik.de/username/%s' % (userid))
+                username = req.read()
+                usernames[userid] = username.rstrip('\r\n')
+
+            users_newly_agreed = [usernames[x] for x in users_newly_agreed]
+            users_newly_disagreed = [usernames[x] for x in users_newly_disagreed]
+
+            # Tell people the good news!
+            for user in users_newly_agreed:
+                response = 'User %s has agreed! http://osm.org/user/%s' % (user, user)
+                irc = world.ircs[0]
+                for chan in irc.state.channels:
+                    msg = ircmsgs.privmsg(chan, response)
+                    world.ircs[0].queueMsg(msg)
+        except Exception as e:
+            log.error(traceback.format_exc(e))
+
     def isoToTimestamp(self, isotime):
         return datetime.datetime.strptime(isotime, "%Y-%m-%dT%H:%M:%SZ")
-        #return calendar.timegm(t.utctimetuple())
 
     def prettyDate(self, d):
         diff = datetime.datetime.utcnow() - d
