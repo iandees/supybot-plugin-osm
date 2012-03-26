@@ -20,6 +20,7 @@ import traceback
 import datetime
 import calendar
 import urllib2
+import urllib
 from xml.etree.cElementTree import ElementTree
 import os
 
@@ -107,7 +108,7 @@ class OSM(callbacks.Plugin):
 
             # Tell people the good news!
             for user in users_newly_agreed:
-                response = 'User %s has agreed! http://osm.org/user/%s' % (user, user)
+                response = 'User %s has agreed! http://osm.org/user/%s' % (user, urllib.quote(user))
                 irc = world.ircs[0]
                 for chan in irc.state.channels:
                     msg = ircmsgs.privmsg(chan, response)
