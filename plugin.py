@@ -23,6 +23,7 @@ import urllib2
 import urllib
 from xml.etree.cElementTree import ElementTree
 import os
+import json
 
 class OSM(callbacks.Plugin):
     """Add the help for "@plugin help OSM" here
@@ -395,6 +396,42 @@ class OSM(callbacks.Plugin):
         
         irc.reply(response.encode('utf-8'))
     lastedit = wrap(last_edit, ['anything'])
+
+    def taginfo(self, irc, msg, args, tag_query):
+        """<tag key>[=<tag value>|*]
+        
+        Shows information about the specified tag key/value combination."""
+        baseUrl = "http://taginfo.openstreetmap.org"
+
+        if not tag_query:
+            irc.error('You forgot to give me a tag_query.')
+            return
+
+        k = None
+        v = None
+        if '=' in tag_query:
+            (k,v) = tag_query.split('=')
+            if '*' == v:
+                v = None
+        else:
+            k = tag_query
+
+        if k is None:
+            irc.error("I don't know how to parse that key/value pair.")
+            return
+        elif v is None:
+            print "Requesting '%s/api/2/db/keys/overview?key=%s'" % (baseUrl, urllib.quote(k))
+            j = urllib2.urlopen('%s/api/2/db/keys/overview?key=%s' % (baseUrl, urllib.quote(k)))
+            data = json.load(j)
+
+            response = "Tag %s has %s values and appears %s times in the planet." % (k, data['all']['values'], data['all']['count'])
+        else:
+            j = urllib2.urlopen('%s/api/2/db/tags/overview?key=%s&value=%s' % (baseUrl, urllib.quote(k), urllib.quote(v)))
+            data = json.load(j)
+        
+            response = "Tag %s=%s appears %s times in the planet." % (k, v, data['all']['count'])
+        irc.reply(response.encode('utf-8'))
+    taginfo = wrap(taginfo, ['anything'])
 
 Class = OSM
 
