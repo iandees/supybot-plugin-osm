@@ -105,7 +105,7 @@ class OSM(callbacks.Plugin):
                     username = req.read()
                     usernames[userid] = username.rstrip('\r\n')
                 except urllib2.HTTPError as e:
-                    if e.status == 404:
+                    if e.code == 404:
                         log.info("Username API didn't know about user id %s." % (userid))
             
             unknown_users = 0
