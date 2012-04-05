@@ -377,9 +377,13 @@ class OSM(callbacks.Plugin):
             return
 
         try:
-            xml = urllib2.urlopen('%s/user/%s/edits/feed' % (baseUrl, username))
+            xml = urllib2.urlopen('%s/user/%s/edits/feed' % (baseUrl, urllib.quote(username)))
         except urllib2.HTTPError as e:
             irc.error('Username %s was not found.' % (username))
+            return
+        except e:
+            irc.error("Could not parse the user's changeset feed.")
+            log.error(e)
             return
 
         tree = ElementTree(file=xml)
