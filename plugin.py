@@ -100,12 +100,20 @@ class OSM(callbacks.Plugin):
             # Look up all the usernames
             usernames = {}
             for userid in set(users_newly_agreed + users_newly_disagreed):
-                req = urllib2.urlopen('http://tools.geofabrik.de/username/%s' % (userid))
-                username = req.read()
-                usernames[userid] = username.rstrip('\r\n')
-
-            users_newly_agreed = [usernames[x] for x in users_newly_agreed]
-            users_newly_disagreed = [usernames[x] for x in users_newly_disagreed]
+                try:
+                    req = urllib2.urlopen('http://tools.geofabrik.de/username/%s' % (userid))
+                    username = req.read()
+                    usernames[userid] = username.rstrip('\r\n')
+                except urllib2.HTTPError as e:
+                    if e.status == 404:
+                        log.info("Username API didn't know about user id %s." % (userid))
+            
+            unknown_users = 0
+            for uid in users_newly_agreed:
+                if uid in usernames:
+                    usernames_newly_agreed.append(usernames[uid])
+                else:
+                    unknown_users = unknown_users + 1
 
             # Tell people the good news!
             for user in users_newly_agreed:
