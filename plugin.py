@@ -136,19 +136,19 @@ class OSM(callbacks.Plugin):
         elif diff.days == 1:
             return '1 day ago'
         elif diff.days > 1:
-            return '{} days ago'.format(diff.days)
+            return '{0} days ago'.format(diff.days)
         elif s <= 1:
             return 'just now'
         elif s < 60:
-            return '{} seconds ago'.format(s)
+            return '{0} seconds ago'.format(s)
         elif s < 120:
             return '1 minute ago'
         elif s < 3600:
-            return '{} minutes ago'.format(s/60)
+            return '{0} minutes ago'.format(s/60)
         elif s < 7200:
             return '1 hour ago'
         else:
-            return '{} hours ago'.format(s/3600)
+            return '{0} hours ago'.format(s/3600)
 
     def tagKeySortKey(self, key):
         ret = key.lower()
@@ -189,8 +189,8 @@ class OSM(callbacks.Plugin):
         tag_strings = []
         tag_elems = node_element.findall('tag')
         for tag_elem in tag_elems:
-            k = tag_elem.attrib('k')
-            v = tag_elem.attrib('v')
+            k = tag_elem.get('k')
+            v = tag_elem.get('v')
             tag_strings.append("%s=%s" % (k, v))
 
         tag_strings = sorted(tag_strings, key=self.tagKeySortKey)
