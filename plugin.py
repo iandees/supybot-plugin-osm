@@ -433,7 +433,6 @@ class OSM(callbacks.Plugin):
             irc.error("I don't know how to parse that key/value pair.")
             return
         elif v is None:
-            print "Requesting '%s/api/2/db/keys/overview?key=%s'" % (baseUrl, urllib.quote(k))
             j = urllib2.urlopen('%s/api/2/db/keys/overview?key=%s' % (baseUrl, urllib.quote(k)))
             data = json.load(j)
 
