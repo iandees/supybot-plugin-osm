@@ -109,6 +109,7 @@ class OSM(callbacks.Plugin):
                         log.info("Username API didn't know about user id %s." % (userid))
             
             unknown_users = 0
+            usernames_newly_agreed = []
             for uid in users_newly_agreed:
                 if uid in usernames:
                     usernames_newly_agreed.append(usernames[uid])
@@ -116,7 +117,7 @@ class OSM(callbacks.Plugin):
                     unknown_users = unknown_users + 1
 
             # Tell people the good news!
-            for user in users_newly_agreed:
+            for user in usernames_newly_agreed:
                 response = 'User %s has agreed! http://osm.org/user/%s' % (user, urllib.quote(user))
                 irc = world.ircs[0]
                 for chan in irc.state.channels:
