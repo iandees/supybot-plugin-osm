@@ -22,6 +22,7 @@ import calendar
 import urllib2
 import urllib
 from xml.etree.cElementTree import ElementTree
+from xml.sax.saxutils import unescape
 import os
 import json
 
@@ -103,7 +104,7 @@ class OSM(callbacks.Plugin):
                 try:
                     req = urllib2.urlopen('http://tools.geofabrik.de/username/%s' % (userid))
                     username = req.read()
-                    usernames[userid] = username.rstrip('\r\n')
+                    usernames[userid] = unescape(username.rstrip('\r\n'))
                 except urllib2.HTTPError as e:
                     if e.code == 404:
                         log.info("Username API didn't know about user id %s." % (userid))
