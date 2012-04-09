@@ -35,6 +35,7 @@ class OSM(callbacks.Plugin):
         self.__parent__ = super(OSM, self)
         self.__parent__.__init__(irc)
         self.last_update_agreed = 0
+        self.last_update_disagreed = 0
         self._start_polling()
         self.irc = irc
 
@@ -51,6 +52,9 @@ class OSM(callbacks.Plugin):
 
     def _poll(self):
         try:
+            users_newly_agreed = []
+            users_newly_disagreed = []
+
             # Grab the latest users_agreed
             log.info('Starting to fetch a new users_agreed.txt')
             req = urllib2.Request('http://planet.openstreetmap.org/users_agreed/users_agreed.txt')
@@ -67,36 +71,73 @@ class OSM(callbacks.Plugin):
                 new_file.write(resp.read())
                 new_file.close()
                 log.info('Finished writing to users_agreed.new.txt')
+
+
+                # Compare to the one we already have
+                if os.path.exists('users_agreed.txt'):
+                    new_file = open('users_agreed.new.txt', 'r')
+                    old_file = open('users_agreed.txt', 'r')
+                    newset = set(new_file.readlines())
+                    oldset = set(old_file.readlines())
+                    old_file.close()
+                    new_file.close()
+
+                    users_newly_agreed = newset - oldset
+
+                    # Strip whitespace and convert to ints
+                    users_newly_agreed = [int(x) for x in users_newly_agreed]
+            
+                # Move the new file into the old file's spot
+                os.rename('users_agreed.new.txt', 'users_agreed.txt')
             except urllib2.HTTPError as e:
                 if e.code == 304:
                     log.info('users_agreed not modified this time around')
-                    return
                 else:
                     raise e
 
-            users_newly_agreed = []
-            users_newly_disagreed = []
+            # Grab the latest users_disagreed
+            log.info('Starting to fetch a new users_disagreed.txt')
+            req = urllib2.Request('http://planet.openstreetmap.org/users_agreed/users_disagreed.txt')
+            if self.last_update_disagreed:
+                req.add_header("If-Modified-Since", self.last_update_disagreed)
+            
+            try:
+                resp = urllib2.urlopen(req)
+                self.last_update_disagreed = resp.info().getheader("Last-Modified")
+                log.info('Last modified at %s' % (self.last_update_disagreed))
 
-            # Compare to the one we already have
-            if os.path.exists('users_agreed.txt'):
-                new_file = open('users_agreed.new.txt', 'r')
-                old_file = open('users_agreed.txt', 'r')
-                newset = set(new_file.readlines())
-                oldset = set(old_file.readlines())
-                old_file.close()
+                # Write it out to a new file
+                new_file = open('users_disagreed.new.txt', 'w')
+                new_file.write(resp.read())
                 new_file.close()
+                log.info('Finished writing to users_disagreed.new.txt')
+                
+                if os.path.exists('users_disagreed.txt'):
+                    new_file = open('users_disagreed.new.txt', 'r')
+                    old_file = open('users_disagreed.txt', 'r')
+                    newset = set(new_file.readlines())
+                    oldset = set(old_file.readlines())
+                    old_file.close()
+                    new_file.close()
 
-                users_newly_agreed = newset - oldset
-                users_newly_disagreed = oldset - newset
+                    users_newly_disagreed = newset - oldset
 
-                # Strip whitespace and convert to ints
-                users_newly_agreed = [int(x) for x in users_newly_agreed]
-                users_newly_disagreed = [int(x) for x in users_newly_disagreed]
+                    # Strip whitespace and convert to ints
+                    users_newly_disagreed = [int(x) for x in users_newly_disagreed]
+            
+                # Move the new file over to the "old" spot
+                os.rename('users_disagreed.new.txt', 'users_disagreed.txt')
+            except urllib2.HTTPError as e:
+                if e.code == 304:
+                    log.info('users_disagreed not modified this time around')
+                else:
+                    raise e
 
-            log.info('New agreers: %s, No longer agreeing: %s' % (users_newly_agreed, users_newly_disagreed))
+            if len(users_newly_agreed + users_newly_disagreed) < 1:
+                return
 
-            # Move the new file over to the "old" spot
-            os.rename('users_agreed.new.txt', 'users_agreed.txt')
+            log.info('New agreers: %s, New disagreers: %s' % (users_newly_agreed, users_newly_disagreed))
+
 
             # Look up all the usernames
             usernames = {}
@@ -111,15 +152,28 @@ class OSM(callbacks.Plugin):
             
             unknown_users = 0
             usernames_newly_agreed = []
+            usernames_newly_disagreed = []
             for uid in users_newly_agreed:
                 if uid in usernames:
                     usernames_newly_agreed.append(usernames[uid])
+                else:
+                    unknown_users = unknown_users + 1
+            for uid in users_newly_disagreed:
+                if uid in usernames:
+                    usernames_newly_disagreed.append(usernames[uid])
                 else:
                     unknown_users = unknown_users + 1
 
             # Tell people the good news!
             for user in usernames_newly_agreed:
                 response = 'User %s has agreed! http://osm.org/user/%s' % (user, urllib.quote(user))
+                irc = world.ircs[0]
+                for chan in irc.state.channels:
+                    msg = ircmsgs.privmsg(chan, response)
+                    world.ircs[0].queueMsg(msg)
+            # Tell people the bad news :(
+            for user in usernames_newly_disagreed:
+                response = 'User %s has declined :( http://osm.org/user/%s' % (user, urllib.quote(user))
                 irc = world.ircs[0]
                 for chan in irc.state.channels:
                     msg = ircmsgs.privmsg(chan, response)
