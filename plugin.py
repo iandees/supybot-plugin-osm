@@ -437,7 +437,7 @@ class OSM(callbacks.Plugin):
         except urllib2.HTTPError as e:
             irc.error('Username %s was not found.' % (username))
             return
-        except e:
+        except Exception as e:
             irc.error("Could not parse the user's changeset feed.")
             log.error(e)
             return
