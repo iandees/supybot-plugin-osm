@@ -484,20 +484,24 @@ class OSM(callbacks.Plugin):
         else:
             k = tag_query
 
-        if k is None:
-            irc.error("I don't know how to parse that key/value pair.")
-            return
-        elif v is None:
-            j = urllib2.urlopen('%s/api/2/db/keys/overview?key=%s' % (baseUrl, urllib.quote(k)))
-            data = json.load(j)
+        try:
+            if k is None:
+                irc.error("I don't know how to parse that key/value pair.")
+                return
+            elif v is None:
+                j = urllib2.urlopen('%s/api/2/db/keys/overview?key=%s' % (baseUrl, urllib.quote(k)), timeout=30.0)
+                data = json.load(j)
 
-            response = "Tag %s has %s values and appears %s times in the planet." % (k, data['all']['values'], data['all']['count'])
-        else:
-            j = urllib2.urlopen('%s/api/2/db/tags/overview?key=%s&value=%s' % (baseUrl, urllib.quote(k), urllib.quote(v)))
-            data = json.load(j)
-        
-            response = "Tag %s=%s appears %s times in the planet." % (k, v, data['all']['count'])
-        irc.reply(response.encode('utf-8'))
+                response = "Tag %s has %s values and appears %s times in the planet." % (k, data['all']['values'], data['all']['count'])
+            else:
+                j = urllib2.urlopen('%s/api/2/db/tags/overview?key=%s&value=%s' % (baseUrl, urllib.quote(k), urllib.quote(v)), timeout=30.0)
+                data = json.load(j)
+            
+                response = "Tag %s=%s appears %s times in the planet." % (k, v, data['all']['count'])
+            irc.reply(response.encode('utf-8'))
+        except urllib2.URLError as e:
+            irc.error('There was an error connecting to the taginfo server. Try again later.')
+            return
     taginfo = wrap(taginfo, ['anything'])
 
 Class = OSM
