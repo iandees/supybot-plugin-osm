@@ -531,7 +531,7 @@ class OSM(callbacks.Plugin):
             irc.error('Relation %s was not found.' % (relation_id))
             return
 
-        tree = ElementTree(file=xml)
+        tree = ElementTree.ElementTree(file=xml)
         relation_element = tree.find('relation')
 
         username = relation_element.attrib['user']
@@ -583,7 +583,7 @@ class OSM(callbacks.Plugin):
             irc.error('Changeset %s was not found.' % (changeset_id))
             return
 
-        tree = ElementTree(file=xml)
+        tree = ElementTree.ElementTree(file=xml)
         changeset_element = tree.find('changeset')
 
         username = changeset_element.attrib['user']
