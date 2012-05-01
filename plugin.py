@@ -384,7 +384,7 @@ class OSM(callbacks.Plugin):
         diff = datetime.datetime.utcnow() - d
         s = diff.seconds
         if diff.days > 7 or diff.days < 0:
-            return 'on %s' % (d.strftime('%d %b %y'))
+            return 'on %s' % (d.strftime('%d %b %Y'))
         elif diff.days == 1:
             return '1 day ago'
         elif diff.days > 1:
