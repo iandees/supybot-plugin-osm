@@ -628,18 +628,25 @@ class OSM(callbacks.Plugin):
             irc.error('You forgot to give me a username.')
             return
 
+        quoted_uname = username
+        quoted_uname = urllib.quote(quoted_uname)
+
         try:
-            xml = urllib2.urlopen('%s/user/%s/edits/feed' % (baseUrl, urllib.quote(username)))
+            xml = urllib2.urlopen('%s/user/%s/edits/feed' % (baseUrl, quoted_uname))
         except urllib2.HTTPError as e:
             irc.error('Username %s was not found.' % (username))
             return
         except Exception as e:
             irc.error("Could not parse the user's changeset feed.")
-            log.error(e)
+            log.error(traceback.format_exc(e))
             return
 
-        tree = ElementTree(file=xml)
+        tree = ElementTree.ElementTree(file=xml)
         first_entry = tree.find('{http://www.w3.org/2005/Atom}entry')
+
+        if first_entry is None:
+            irc.error("Looks like %s doesn't have any edits." % (username))
+            return
 
         author = first_entry.findtext('{http://www.w3.org/2005/Atom}author/{http://www.w3.org/2005/Atom}name')
         timestamp = first_entry.findtext('{http://www.w3.org/2005/Atom}updated')
