@@ -17,14 +17,85 @@ import supybot.log as log
 
 import traceback
 
+import gzip
+import StringIO
+import itertools
 import datetime
 import calendar
 import urllib2
 import urllib
-from xml.etree.cElementTree import ElementTree
+import xml.etree.cElementTree as ElementTree
 from xml.sax.saxutils import unescape
 import os
 import json
+
+class OscHandler():
+  def __init__(self):
+    self.changes = {}
+    self.nodes = {}
+    self.ways = {}
+    self.relations = {}
+    self.action = ""
+    self.primitive = {}
+    self.missingNds = set()
+
+  def startElement(self, name, attributes):
+    if name in ('modify', 'delete', 'create'):
+      self.action = name
+    if name in ('node', 'way', 'relation'):
+      self.primitive['id'] = int(attributes['id'])
+      self.primitive['version'] = int(attributes['version'])
+      self.primitive['changeset'] = int(attributes['changeset'])
+      self.primitive['uid'] = int(attributes.get('uid'))
+      self.primitive['user'] = attributes.get('user')
+      self.primitive['timestamp'] = isoToTimestamp(attributes['timestamp'])
+      self.primitive['tags'] = {}
+      self.primitive['action'] = self.action
+    if name == 'node':
+      self.primitive['lat'] = float(attributes['lat'])
+      self.primitive['lon'] = float(attributes['lon'])
+    elif name == 'tag':
+      key = attributes['k']
+      val = attributes['v']
+      self.primitive['tags'][key] = val
+    elif name == 'way':
+      self.primitive['nodes'] = []
+    elif name == 'relation':
+      self.primitive['members'] = []
+    elif name == 'nd':
+      ref = int(attributes['ref'])
+      self.primitive['nodes'].append(ref)
+      if ref not in self.nodes:
+        self.missingNds.add(ref)
+    elif name == 'member':
+      self.primitive['members'].append(
+                                    {
+                                     'type': attributes['type'],
+                                     'role': attributes['role'],
+                                     'ref': attributes['ref']
+                                    })
+
+  def endElement(self, name):
+    if name == 'node':
+      self.nodes[self.primitive['id']] = self.primitive
+    elif name == 'way':
+      self.ways[self.primitive['id']] = self.primitive
+    elif name == 'relation':
+      self.relations[self.primitive['id']] = self.primitive
+    if name in ('node', 'way', 'relation'):
+      self.primitive = {}
+
+def isoToTimestamp(isotime):
+  t = datetime.datetime.strptime(isotime, "%Y-%m-%dT%H:%M:%SZ")
+  return calendar.timegm(t.utctimetuple())
+
+def parseOsm(source, handler):
+  for event, elem in ElementTree.iterparse(source, events=('start', 'end')):
+    if event == 'start':
+      handler.startElement(elem.tag, elem.attrib)
+    elif event == 'end':
+      handler.endElement(elem.tag)
+    elem.clear()
 
 class OSM(callbacks.Plugin):
     """Add the help for "@plugin help OSM" here
@@ -47,8 +118,133 @@ class OSM(callbacks.Plugin):
         self.poll_period = 600
         schedule.addPeriodicEvent(self._poll, self.poll_period, now=True, name=self.name())
 
+        schedule.addPeriodicEvent(self._minutely_diff_poll, 60, now=True, name='minutely_poll')
+
     def _stop_polling(self):
         schedule.removeEvent(self.name())
+
+        schedule.removeEvent('minutely_poll')
+
+    def readState(self):
+        # Read the state.txt
+        sf = open('state.txt', 'r')
+
+        state = {}
+        for line in sf:
+            if line[0] == '#':
+              continue
+            (k, v) = line.split('=')
+            state[k] = v.strip().replace("\\:", ":")
+
+        sf.close()
+
+        return state
+
+    def fetchNextState(self, currentState):
+        stateTs = datetime.datetime.strptime(currentState['timestamp'], "%Y-%m-%dT%H:%M:%SZ")
+        nextTs = stateTs + datetime.timedelta(minutes=1)
+
+        if datetime.datetime.utcnow() < nextTs:
+            # The next timestamp is in the future, so don't try to get it.
+            return False
+
+        # Download the next state file
+        nextSqn = int(currentState['sequenceNumber']) + 1
+        sqnStr = str(nextSqn).zfill(9)
+        url = "http://planet.openstreetmap.org/redaction-period/minute-replicate/%s/%s/%s.state.txt" % (sqnStr[0:3], sqnStr[3:6], sqnStr[6:9])
+        try:
+            u = urllib2.urlopen(url)
+            statefile = open('state.txt', 'w')
+            statefile.write(u.read())
+            statefile.close()
+        except Exception, e:
+            print e
+            return False
+
+        return True
+
+    def _minutely_diff_poll(self):
+        try:
+            if not os.path.exists('state.txt'):
+                log.error("No state file found to poll minutelies.")
+                return
+
+            log.info("Looking for new users.")
+
+            seen_uids = {}
+
+            keep_updating = True
+            while keep_updating:
+                state = self.readState()
+
+                minuteNumber = int(isoToTimestamp(state['timestamp'])) / 60
+
+                # Grab the next sequence number and build a URL out of it
+                sqnStr = state['sequenceNumber'].zfill(9)
+                url = "http://planet.openstreetmap.org/redaction-period/minute-replicate/%s/%s/%s.osc.gz" % (sqnStr[0:3], sqnStr[3:6], sqnStr[6:9])
+
+                log.debug("Downloading change file (%s)." % (url))
+                content = urllib2.urlopen(url)
+                content = StringIO.StringIO(content.read())
+                gzipper = gzip.GzipFile(fileobj=content)
+
+                handler = OscHandler()
+                parseOsm(gzipper, handler)
+
+                for (id, prim) in itertools.chain(handler.nodes.iteritems(), handler.ways.iteritems(), handler.relations.iteritems()):
+                    uid = str(prim['uid'])
+                    if uid not in seen_uids:
+                        seen_uids[str(prim['uid'])] = {'changeset': prim['changeset'],
+                                                       'username': prim['user']}
+
+                    if 'lat' in prim and 'lat' not in seen_uids[str(prim['uid'])]:
+                        seen_uids[str(prim['uid'])]['lat'] = prim['lat']
+                        seen_uids[str(prim['uid'])]['lon'] = prim['lon']
+
+                keep_updating = self.fetchNextState(state)
+
+            log.info("There were %s users editing this time." % len(seen_uids))
+
+            f = open('uid.txt', 'r')
+            for line in f:
+                for uid in seen_uids.keys():
+                    if uid in line:
+                        seen_uids.pop(uid)
+                        continue
+                if len(seen_uids) == 0:
+                    break
+            f.close()
+
+            f = open('uid.txt', 'a')
+            for (uid, data) in seen_uids.iteritems():
+                f.write('%s\t%s\n' % (data['username'], uid))
+
+                location = ""
+                if 'lat' in data:
+                    try:
+                        urldata = urllib2.urlopen('http://nominatim.openstreetmap.org/reverse?format=json&lat=%s&lon=%s' % (data['lat'], data['lon']))
+
+                        info = json.load(urldata)
+                        if 'address' in info:
+                            address = info.get('address')
+
+                            if 'country' in address:
+                                location = address.get('country')
+                            if 'state' in address:
+                                location = "%s, %s" % (address.get('state'), location)
+                            if 'county' in address:
+                                location = "%s, %s" % (address.get('county'), location)
+
+                            location = " near %s" % (location)
+                    except urllib2.HTTPError as e:
+                        log.warn("HTTP problem when looking for edit location: %s" % (e))
+
+                log.info("%s just started editing%s with changeset http://osm.org/browse/changeset/%s!" % (data['username'], location, data['changeset']))
+
+            f.close()
+
+        except Exception as e:
+            log.error(traceback.format_exc(e))
 
     def _poll(self):
         try:
@@ -235,7 +431,7 @@ class OSM(callbacks.Plugin):
             irc.error('Node %s was not found.' % (node_id))
             return
 
-        tree = ElementTree(file=xml)
+        tree = ElementTree.ElementTree(file=xml)
         node_element = tree.find("node")
 
         username = node_element.attrib['user']
@@ -283,7 +479,7 @@ class OSM(callbacks.Plugin):
             irc.error('Way %s was not found.' % (way_id))
             return
 
-        tree = ElementTree(file=xml)
+        tree = ElementTree.ElementTree(file=xml)
         way_element = tree.find('way')
 
         username = way_element.attrib['user']
@@ -498,7 +694,7 @@ class OSM(callbacks.Plugin):
                 data = json.load(j)
             
                 response = "Tag %s=%s appears %s times in the planet." % (k, v, data['all']['count'])
-            irc.reply(response.encode('utf-8'))
+            irc.reply(response)
         except urllib2.URLError as e:
             irc.error('There was an error connecting to the taginfo server. Try again later.')
             return
