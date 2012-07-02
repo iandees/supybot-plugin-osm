@@ -454,11 +454,12 @@ class OSM(callbacks.Plugin):
         elif len(tag_strings) > 1:
             tag_str = 'tags %s' % (', '.join(tag_strings))
 
-        response = "Node %s: version %s by %s edited %s and has %s" % (node_id,
-                                                                       version,
-                                                                       username,
-                                                                       self.prettyDate(timestamp),
-                                                                       tag_str)
+        response = "Node %s: version %s by %s edited %s and has %s http://osm.org/browse/node/%s" % (node_id,
+                                                                          version,
+                                                                          username,
+                                                                          self.prettyDate(timestamp),
+                                                                          tag_str,
+                                                                          node_id)
         
         irc.reply(response.encode('utf-8'))
     node = wrap(node, ['int'])
@@ -509,8 +510,8 @@ class OSM(callbacks.Plugin):
         elif len(nd_refs) > 1:
             nd_refs_str = "%d nodes" % (len(nd_refs))
 
-        response = "Way %s: version %s by %s edited %s with %s and %s" % \
-                (way_id, version, username, self.prettyDate(timestamp), nd_refs_str, tag_str)
+        response = "Way %s: version %s by %s edited %s with %s and %s http://osm.org/browse/way/%s" % \
+                (way_id, version, username, self.prettyDate(timestamp), nd_refs_str, tag_str, way_id)
         
         irc.reply(response.encode('utf-8'))
     way = wrap(way, ['int'])
@@ -561,8 +562,8 @@ class OSM(callbacks.Plugin):
         elif len(members) > 1:
             members_str = "%d members" % (len(members))
 
-        response = "Relation %s: version %s by %s edited %s with %s and %s" % \
-                (relation_id, version, username, self.prettyDate(timestamp), members_str, tag_str)
+        response = "Relation %s: version %s by %s edited %s with %s and %s http://osm.org/browse/relation/%s" % \
+                (relation_id, version, username, self.prettyDate(timestamp), members_str, tag_str, relation_id)
         
         irc.reply(response.encode('utf-8'))
     relation = wrap(relation, ['int'])
