@@ -28,6 +28,8 @@ import xml.etree.cElementTree as ElementTree
 from xml.sax.saxutils import unescape
 import os
 import json
+import re
+import twitter
 
 class OscHandler():
   def __init__(self):
@@ -116,14 +118,14 @@ class OSM(callbacks.Plugin):
 
     def _start_polling(self):
         self.poll_period = 600
-        schedule.addPeriodicEvent(self._poll, self.poll_period, now=True, name=self.name())
-
+        #schedule.addPeriodicEvent(self._agree_disagree_poll, self.poll_period, now=True, name='agree_disagree')
         schedule.addPeriodicEvent(self._minutely_diff_poll, 60, now=True, name='minutely_poll')
+        #schedule.addPeriodicEvent(self._minutely_redaction_poll, 60, now=True, name='minutely_redaction_poll')
 
     def _stop_polling(self):
-        schedule.removeEvent(self.name())
-
+        #schedule.removeEvent('agree_disagree')
         schedule.removeEvent('minutely_poll')
+        #schedule.removeEvent('minutely_redaction_poll')
 
     def readState(self):
         # Read the state.txt
@@ -151,7 +153,7 @@ class OSM(callbacks.Plugin):
         # Download the next state file
         nextSqn = int(currentState['sequenceNumber']) + 1
         sqnStr = str(nextSqn).zfill(9)
-        url = "http://planet.openstreetmap.org/redaction-period/minute-replicate/%s/%s/%s.state.txt" % (sqnStr[0:3], sqnStr[3:6], sqnStr[6:9])
+        url = "http://planet.openstreetmap.org/replication/minute/%s/%s/%s.state.txt" % (sqnStr[0:3], sqnStr[3:6], sqnStr[6:9])
         try:
             u = urllib2.urlopen(url)
             statefile = open('state.txt', 'w')
@@ -163,13 +165,74 @@ class OSM(callbacks.Plugin):
 
         return True
 
+    def _minutely_redaction_poll(self):
+        try:
+            # Fetch the previous JSON doc
+            previous_data = []
+            if os.path.exists('previous_botprocessing.json'):
+                f = open('previous_botprocessing.json')
+                previous_data = json.load(f)
+                f.close()
+
+            # Fetch Harry's JSON doc
+            url = "http://harrywood.dev.openstreetmap.org/license-change/botprocessing.json"
+            u = urllib2.urlopen(url)
+            data = u.read()
+            data = data.replace("data=[", "[", 1)
+            data = data.replace(" filename:\"", " \"filename\":\"")
+            data = data.replace(", status:\"", ", \"status\":\"")
+            data = data.replace(", summary:\"", ", \"summary\":\"")
+            data = data.replace(", time:\"", ", \"time\":\"")
+            data = data.replace(", id:\"", ", \"id\":\"")
+            data = data.replace(", lat:", ", \"lat\":")
+            data = data.replace(", lon:", ", \"lon\":")
+            #data = data.replace("}]", "}]}", 1)
+            #log.info(data)
+            data = json.loads(data)
+            log.debug("Loaded new bot processing.")
+
+            # Save the new stuff to disk
+            f = open('previous_botprocessing.json', 'w')
+            f.write(json.dumps(data))
+            f.close()
+
+            count = 0
+            for (prev, new) in itertools.izip_longest(previous_data, data):
+                if prev != new:
+                    count += 1
+                    response = None
+                    if prev is None and new['status'] == "UNKNOWN":
+                        response = 'Redaction bot started working on %s,%s' % (new['lat'], new['lon'])
+                    elif prev['status'] == "UNKNOWN" and new['status'] == "SUCCESS":
+                        response = 'Redaction bot successfully finished %s,%s' % (new['lat'], new['lon'])
+                    elif prev['status'] == "UNKNOWN" and new['status'] == "FAIL":
+                        response = 'Redaction bot failed at %s,%s' % (new['lat'], new['lon'])
+                    
+                    if response:
+                        if count > 3:
+                            log.warn("Skipping noisy message '%s'" % response)
+                            return
+
+                        #irc = world.ircs[0]
+                        #for chan in irc.state.channels:
+                        #    msg = ircmsgs.privmsg(chan, response)
+                        #    world.ircs[0].queueMsg(msg)
+
+                        #log.info(response)
+                        
+                        tweet = self.tweet.PostUpdate(response)
+                        log.info("Tweeted '%s'." % (tweet.text))
+
+        except Exception as e:
+            log.error(traceback.format_exc(e))
+
     def _minutely_diff_poll(self):
         try:
             if not os.path.exists('state.txt'):
                 log.error("No state file found to poll minutelies.")
                 return
 
-            log.info("Looking for new users.")
+            log.debug("Looking for new users.")
 
             seen_uids = {}
 
@@ -181,7 +244,7 @@ class OSM(callbacks.Plugin):
 
                 # Grab the next sequence number and build a URL out of it
                 sqnStr = state['sequenceNumber'].zfill(9)
-                url = "http://planet.openstreetmap.org/redaction-period/minute-replicate/%s/%s/%s.osc.gz" % (sqnStr[0:3], sqnStr[3:6], sqnStr[6:9])
+                url = "http://planet.openstreetmap.org/replication/minute/%s/%s/%s.osc.gz" % (sqnStr[0:3], sqnStr[3:6], sqnStr[6:9])
 
                 log.debug("Downloading change file (%s)." % (url))
                 content = urllib2.urlopen(url)
@@ -239,14 +302,20 @@ class OSM(callbacks.Plugin):
                     except urllib2.HTTPError as e:
                         log.warn("HTTP problem when looking for edit location: %s" % (e))
 
-                log.info("%s just started editing%s with changeset http://osm.org/browse/changeset/%s!" % (data['username'], location, data['changeset']))
+                response = "%s just started editing%s with changeset http://osm.org/browse/changeset/%s" % (data['username'], location, data['changeset'])
+                log.info(response)
+                irc = world.ircs[0]
+                for chan in irc.state.channels:
+                    if chan == "#osm-bot":
+                        msg = ircmsgs.privmsg(chan, response.encode('utf-8'))
+                        world.ircs[0].queueMsg(msg)
 
             f.close()
 
         except Exception as e:
-            log.error(traceback.format_exc(e))
+            log.error("Exception processing new users: %s" % traceback.format_exc(e))
 
-    def _poll(self):
+    def _agree_disagree_poll(self):
         try:
             users_newly_agreed = []
             users_newly_disagreed = []
@@ -281,7 +350,7 @@ class OSM(callbacks.Plugin):
                     users_newly_agreed = newset - oldset
 
                     # Strip whitespace and convert to ints
-                    users_newly_agreed = [int(x) for x in users_newly_agreed]
+                    users_newly_agreed = [int(x) for x in users_newly_agreed if x != '']
             
                 # Move the new file into the old file's spot
                 os.rename('users_agreed.new.txt', 'users_agreed.txt')
@@ -319,7 +388,7 @@ class OSM(callbacks.Plugin):
                     users_newly_disagreed = newset - oldset
 
                     # Strip whitespace and convert to ints
-                    users_newly_disagreed = [int(x) for x in users_newly_disagreed]
+                    users_newly_disagreed = [int(x) for x in users_newly_disagreed if x != '']
             
                 # Move the new file over to the "old" spot
                 os.rename('users_disagreed.new.txt', 'users_disagreed.txt')
@@ -696,13 +765,13 @@ class OSM(callbacks.Plugin):
                 j = urllib2.urlopen('%s/api/2/db/keys/overview?key=%s' % (baseUrl, urllib.quote(k)), timeout=30.0)
                 data = json.load(j)
 
-                response = "Tag %s has %s values and appears %s times in the planet." % (k, data['all']['values'], data['all']['count'])
+                response = "Tag %s has %s values and appears %s times in the planet. http://taginfo.osm.org/keys/%s" % (k, data['all']['values'], data['all']['count'], urllib.quote(k))
             else:
                 j = urllib2.urlopen('%s/api/2/db/tags/overview?key=%s&value=%s' % (baseUrl, urllib.quote(k), urllib.quote(v)), timeout=30.0)
                 data = json.load(j)
             
-                response = "Tag %s=%s appears %s times in the planet." % (k, v, data['all']['count'])
-            irc.reply(response)
+                response = "Tag %s=%s appears %s times in the planet. http://taginfo.osm.org/tags/%s" % (k, v, data['all']['count'], urllib.quote("%s=%s" % (k,v)))
+            irc.reply(response.encode('utf-8'))
         except urllib2.URLError as e:
             irc.error('There was an error connecting to the taginfo server. Try again later.')
             return
