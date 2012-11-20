@@ -99,6 +99,10 @@ def parseOsm(source, handler):
       handler.endElement(elem.tag)
     elem.clear()
 
+_new_uid_edit_region_channels = {
+    "#osm-gb": re.compile(r".*?United Kingdom$"),
+}
+
 class OSM(callbacks.Plugin):
     """Add the help for "@plugin help OSM" here
     This should describe *how* to use this plugin."""
@@ -306,7 +310,7 @@ class OSM(callbacks.Plugin):
                 log.info(response)
                 irc = world.ircs[0]
                 for chan in irc.state.channels:
-                    if chan == "#osm-bot":
+                    if chan == "#osm-bot" or (chan in _new_uid_edit_region_channels and _new_uid_edit_region_channels[chan].match(location) is not None):
                         msg = ircmsgs.privmsg(chan, response.encode('utf-8'))
                         world.ircs[0].queueMsg(msg)
 
