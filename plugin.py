@@ -29,7 +29,6 @@ from xml.sax.saxutils import unescape
 import os
 import json
 import re
-import twitter
 
 class OscHandler():
   def __init__(self):
@@ -118,14 +117,12 @@ class OSM(callbacks.Plugin):
 
     def _start_polling(self):
         self.poll_period = 600
-        #schedule.addPeriodicEvent(self._agree_disagree_poll, self.poll_period, now=True, name='agree_disagree')
+        log.info('Start polling.')
         schedule.addPeriodicEvent(self._minutely_diff_poll, 60, now=True, name='minutely_poll')
-        #schedule.addPeriodicEvent(self._minutely_redaction_poll, 60, now=True, name='minutely_redaction_poll')
 
     def _stop_polling(self):
-        #schedule.removeEvent('agree_disagree')
+        log.info('Stop polling.')
         schedule.removeEvent('minutely_poll')
-        #schedule.removeEvent('minutely_redaction_poll')
 
     def readState(self):
         # Read the state.txt
@@ -165,74 +162,13 @@ class OSM(callbacks.Plugin):
 
         return True
 
-    def _minutely_redaction_poll(self):
-        try:
-            # Fetch the previous JSON doc
-            previous_data = []
-            if os.path.exists('previous_botprocessing.json'):
-                f = open('previous_botprocessing.json')
-                previous_data = json.load(f)
-                f.close()
-
-            # Fetch Harry's JSON doc
-            url = "http://harrywood.dev.openstreetmap.org/license-change/botprocessing.json"
-            u = urllib2.urlopen(url)
-            data = u.read()
-            data = data.replace("data=[", "[", 1)
-            data = data.replace(" filename:\"", " \"filename\":\"")
-            data = data.replace(", status:\"", ", \"status\":\"")
-            data = data.replace(", summary:\"", ", \"summary\":\"")
-            data = data.replace(", time:\"", ", \"time\":\"")
-            data = data.replace(", id:\"", ", \"id\":\"")
-            data = data.replace(", lat:", ", \"lat\":")
-            data = data.replace(", lon:", ", \"lon\":")
-            #data = data.replace("}]", "}]}", 1)
-            #log.info(data)
-            data = json.loads(data)
-            log.debug("Loaded new bot processing.")
-
-            # Save the new stuff to disk
-            f = open('previous_botprocessing.json', 'w')
-            f.write(json.dumps(data))
-            f.close()
-
-            count = 0
-            for (prev, new) in itertools.izip_longest(previous_data, data):
-                if prev != new:
-                    count += 1
-                    response = None
-                    if prev is None and new['status'] == "UNKNOWN":
-                        response = 'Redaction bot started working on %s,%s' % (new['lat'], new['lon'])
-                    elif prev['status'] == "UNKNOWN" and new['status'] == "SUCCESS":
-                        response = 'Redaction bot successfully finished %s,%s' % (new['lat'], new['lon'])
-                    elif prev['status'] == "UNKNOWN" and new['status'] == "FAIL":
-                        response = 'Redaction bot failed at %s,%s' % (new['lat'], new['lon'])
-                    
-                    if response:
-                        if count > 3:
-                            log.warn("Skipping noisy message '%s'" % response)
-                            return
-
-                        #irc = world.ircs[0]
-                        #for chan in irc.state.channels:
-                        #    msg = ircmsgs.privmsg(chan, response)
-                        #    world.ircs[0].queueMsg(msg)
-
-                        #log.info(response)
-                        
-                        tweet = self.tweet.PostUpdate(response)
-                        log.info("Tweeted '%s'." % (tweet.text))
-
-        except Exception as e:
-            log.error(traceback.format_exc(e))
-
     def _minutely_diff_poll(self):
         try:
             if not os.path.exists('state.txt'):
                 log.error("No state file found to poll minutelies.")
                 return
 
-            log.debug("Looking for new users.")
+            log.info("Looking for new users.")
 
             seen_uids = {}
 
@@ -246,7 +182,7 @@ class OSM(callbacks.Plugin):
                 sqnStr = state['sequenceNumber'].zfill(9)
                 url = "http://planet.openstreetmap.org/replication/minute/%s/%s/%s.osc.gz" % (sqnStr[0:3], sqnStr[3:6], sqnStr[6:9])
 
-                log.debug("Downloading change file (%s)." % (url))
+                log.info("Downloading change file (%s)." % (url))
                 content = urllib2.urlopen(url)
                 content = StringIO.StringIO(content.read())
                 gzipper = gzip.GzipFile(fileobj=content)
@@ -314,137 +250,6 @@ class OSM(callbacks.Plugin):
 
         except Exception as e:
             log.error("Exception processing new users: %s" % traceback.format_exc(e))
-
-    def _agree_disagree_poll(self):
-        try:
-            users_newly_agreed = []
-            users_newly_disagreed = []
-
-            # Grab the latest users_agreed
-            log.info('Starting to fetch a new users_agreed.txt')
-            req = urllib2.Request('http://planet.openstreetmap.org/users_agreed/users_agreed.txt')
-            if self.last_update_agreed:
-                req.add_header("If-Modified-Since", self.last_update_agreed)
-            
-            try:
-                resp = urllib2.urlopen(req)
-                self.last_update_agreed = resp.info().getheader("Last-Modified")
-                log.info('Last modified at %s' % (self.last_update_agreed))
-
-                # Write it out to a new file
-                new_file = open('users_agreed.new.txt', 'w')
-                new_file.write(resp.read())
-                new_file.close()
-                log.info('Finished writing to users_agreed.new.txt')
-
-
-                # Compare to the one we already have
-                if os.path.exists('users_agreed.txt'):
-                    new_file = open('users_agreed.new.txt', 'r')
-                    old_file = open('users_agreed.txt', 'r')
-                    newset = set(new_file.readlines())
-                    oldset = set(old_file.readlines())
-                    old_file.close()
-                    new_file.close()
-
-                    users_newly_agreed = newset - oldset
-
-                    # Strip whitespace and convert to ints
-                    users_newly_agreed = [int(x) for x in users_newly_agreed if x != '']
-            
-                # Move the new file into the old file's spot
-                os.rename('users_agreed.new.txt', 'users_agreed.txt')
-            except urllib2.HTTPError as e:
-                if e.code == 304:
-                    log.info('users_agreed not modified this time around')
-                else:
-                    raise e
-
-            # Grab the latest users_disagreed
-            log.info('Starting to fetch a new users_disagreed.txt')
-            req = urllib2.Request('http://planet.openstreetmap.org/users_agreed/users_disagreed.txt')
-            if self.last_update_disagreed:
-                req.add_header("If-Modified-Since", self.last_update_disagreed)
-            
-            try:
-                resp = urllib2.urlopen(req)
-                self.last_update_disagreed = resp.info().getheader("Last-Modified")
-                log.info('Last modified at %s' % (self.last_update_disagreed))
-
-                # Write it out to a new file
-                new_file = open('users_disagreed.new.txt', 'w')
-                new_file.write(resp.read())
-                new_file.close()
-                log.info('Finished writing to users_disagreed.new.txt')
-                
-                if os.path.exists('users_disagreed.txt'):
-                    new_file = open('users_disagreed.new.txt', 'r')
-                    old_file = open('users_disagreed.txt', 'r')
-                    newset = set(new_file.readlines())
-                    oldset = set(old_file.readlines())
-                    old_file.close()
-                    new_file.close()
-
-                    users_newly_disagreed = newset - oldset
-
-                    # Strip whitespace and convert to ints
-                    users_newly_disagreed = [int(x) for x in users_newly_disagreed if x != '']
-            
-                # Move the new file over to the "old" spot
-                os.rename('users_disagreed.new.txt', 'users_disagreed.txt')
-            except urllib2.HTTPError as e:
-                if e.code == 304:
-                    log.info('users_disagreed not modified this time around')
-                else:
-                    raise e
-
-            if len(users_newly_agreed + users_newly_disagreed) < 1:
-                return
-
-            log.info('New agreers: %s, New disagreers: %s' % (users_newly_agreed, users_newly_disagreed))
-
-
-            # Look up all the usernames
-            usernames = {}
-            for userid in set(users_newly_agreed + users_newly_disagreed):
-                try:
-                    req = urllib2.urlopen('http://tools.geofabrik.de/username/%s' % (userid))
-                    username = req.read()
-                    usernames[userid] = unescape(username.rstrip('\r\n'))
-                except urllib2.HTTPError as e:
-                    if e.code == 404:
-                        log.info("Username API didn't know about user id %s." % (userid))
-            
-            unknown_users = 0
-            usernames_newly_agreed = []
-            usernames_newly_disagreed = []
-            for uid in users_newly_agreed:
-                if uid in usernames:
-                    usernames_newly_agreed.append(usernames[uid])
-                else:
-                    unknown_users = unknown_users + 1
-            for uid in users_newly_disagreed:
-                if uid in usernames:
-                    usernames_newly_disagreed.append(usernames[uid])
-                else:
-                    unknown_users = unknown_users + 1
-
-            # Tell people the good news!
-            for user in usernames_newly_agreed:
-                response = 'User %s has agreed! http://osm.org/user/%s' % (user, urllib.quote(user))
-                irc = world.ircs[0]
-                for chan in irc.state.channels:
-                    msg = ircmsgs.privmsg(chan, response)
-                    world.ircs[0].queueMsg(msg)
-            # Tell people the bad news :(
-            for user in usernames_newly_disagreed:
-                response = 'User %s has declined :( http://osm.org/user/%s' % (user, urllib.quote(user))
-                irc = world.ircs[0]
-                for chan in irc.state.channels:
-                    msg = ircmsgs.privmsg(chan, response)
-                    world.ircs[0].queueMsg(msg)
-        except Exception as e:
-            log.error(traceback.format_exc(e))
 
     def isoToTimestamp(self, isotime):
         return datetime.datetime.strptime(isotime, "%Y-%m-%dT%H:%M:%SZ")
