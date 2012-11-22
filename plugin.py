@@ -237,6 +237,12 @@ class OSM(callbacks.Plugin):
                                 location = "%s, %s" % (address.get('state'), location)
                             if 'county' in address:
                                 location = "%s, %s" % (address.get('county'), location)
+                            if 'administrative' in address:
+                                location = "%s, %s" % (address.get('administrative'), location)
+                            if 'city' in address:
+                                location = "%s, %s" % (address.get('city'), location)
+                            if 'hamlet' in address:
+                                location = "%s, %s" % (address.get('hamlet'), location)
 
                             location = " near %s" % (location)
                     except urllib2.HTTPError as e:
