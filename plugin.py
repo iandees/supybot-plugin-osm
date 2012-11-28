@@ -312,7 +312,13 @@ class OSM(callbacks.Plugin):
         try:
             xml = urllib2.urlopen('%s/api/0.6/node/%d' % (baseUrl, node_id))
         except urllib2.HTTPError as e:
-            irc.error('Node %s was not found.' % (node_id))
+            if e.code == 410:
+                last_mod = datetime.datetime.strptime(e.headers.get('Last-Modified'), '%a, %d %b %Y %H:%M:%S %Z')
+                irc.reply('Node %s was deleted %s ago.' % (node_id, self.prettyDate(last_mod)))
+            elif e.code == 404:
+                irc.error('Node %s was not found.' % (node_id))
+            else:
+                irc.error('Could not reach server for node %s.' % (node_id))
             return
 
         tree = ElementTree.ElementTree(file=xml)
@@ -361,7 +367,13 @@ class OSM(callbacks.Plugin):
         try:
             xml = urllib2.urlopen('%s/api/0.6/way/%d' % (baseUrl, way_id))
         except urllib2.HTTPError as e:
-            irc.error('Way %s was not found.' % (way_id))
+            if e.code == 410:
+                last_mod = datetime.datetime.strptime(e.headers.get('Last-Modified'), '%a, %d %b %Y %H:%M:%S %Z')
+                irc.reply('Way %s was deleted %s ago.' % (way_id, self.prettyDate(last_mod)))
+            elif e.code == 404:
+                irc.error('Way %s was not found.' % (way_id))
+            else:
+                irc.error('Could not reach server for way %s.' % (way_id))
             return
 
         tree = ElementTree.ElementTree(file=xml)
@@ -413,7 +425,13 @@ class OSM(callbacks.Plugin):
         try:
             xml = urllib2.urlopen('%s/api/0.6/relation/%d' % (baseUrl, relation_id))
         except urllib2.HTTPError as e:
-            irc.error('Relation %s was not found.' % (relation_id))
+            if e.code == 410:
+                last_mod = datetime.datetime.strptime(e.headers.get('Last-Modified'), '%a, %d %b %Y %H:%M:%S %Z')
+                irc.reply('Relation %s was deleted %s ago.' % (relation_id, self.prettyDate(last_mod)))
+            elif e.code == 404:
+                irc.error('Relation %s was not found.' % (relation_id))
+            else:
+                irc.error('Could not reach server for relation %s.' % (relation_id))
             return
 
         tree = ElementTree.ElementTree(file=xml)
