@@ -100,7 +100,38 @@ def parseOsm(source, handler):
     elem.clear()
 
 _new_uid_edit_region_channels = {
-    "#osm-gb": re.compile(r".*?United Kingdom$"),
+    "#osm-ar": ("ar",),
+    "#osm-au": ("au",),
+    "#osm-bd": ("bd",),
+    "#osm-be": ("be",),
+    "#osm-br": ("br",),
+    "#osm-by": ("by",),
+    "#osm-ca": ("ca",),
+    "#osm-ch": ("ch",),
+    "#osm-de": ("de",),
+    "#osm-dk": ("dk",),
+    "#osm-do": ("do",),
+    "#osm-es": ("es",),
+    "#osm-fi": ("fi",),
+    "#osm-fr": ("fr",),
+    "#osm-gb": ("gb",),
+    "#osm-ht": ("ht",),
+    "#osm-ie": ("ie",),
+    "#osm-it": ("it",),
+    "#osm-ja": ("jp",),
+    "#osm-lv": ("lv",),
+    "#osm-ly": ("ly",),
+    "#osm-nl": ("nl",),
+    "#osm-no": ("no",),
+    "#osm-nl": ("nl",),
+    "#osm-no": ("no",),
+    "#osm-ph": ("ph",),
+    "#osm-pl": ("pl",),
+    "#osm-ps": ("ps",),
+    "#osm-ru": ("ru",),
+    "#OSM.se": ("se",),
+    "#osm-ua": ("ua",),
+    "#osm-us": ("us",),
 }
 
 class OSM(callbacks.Plugin):
@@ -287,6 +318,7 @@ class OSM(callbacks.Plugin):
                 f.write('%s\t%s\n' % (data['username'], uid))
 
                 location = ""
+                country_code = None
                 if 'lat' in data:
                     try:
                         urldata = urllib2.urlopen('http://nominatim.openstreetmap.org/reverse?format=json&lat=%s&lon=%s' % (data['lat'], data['lon']))
@@ -294,6 +326,8 @@ class OSM(callbacks.Plugin):
                         info = json.load(urldata)
                         if 'address' in info:
                             address = info.get('address')
+
+                            country_code = address.get('country_code')
 
                             if 'country' in address:
                                 location = address.get('country')
@@ -310,7 +344,7 @@ class OSM(callbacks.Plugin):
                 log.info(response)
                 irc = world.ircs[0]
                 for chan in irc.state.channels:
-                    if chan == "#osm-bot" or (chan in _new_uid_edit_region_channels and _new_uid_edit_region_channels[chan].match(location) is not None):
+                    if chan == "#osm-bot" or country_code in _new_uid_edit_region_channels.get(chan, ()):
                         msg = ircmsgs.privmsg(chan, response.encode('utf-8'))
                         world.ircs[0].queueMsg(msg)
 
