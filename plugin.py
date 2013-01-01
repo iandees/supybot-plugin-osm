@@ -304,7 +304,7 @@ class OSM(callbacks.Plugin):
                 irc = world.ircs[0]
                 for chan in irc.state.channels:
                     if chan == "#osm-bot" or country_code in _new_uid_edit_region_channels.get(chan, ()):
-                        msg = ircmsgs.privmsg(chan, response.encode('utf-8'))
+                        msg = ircmsgs.privmsg(chan, response)
                         world.ircs[0].queueMsg(msg)
 
             f.close()
