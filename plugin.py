@@ -151,7 +151,6 @@ class OSM(callbacks.Plugin):
         self.__parent__.die()
 
     def _start_polling(self):
-        self.poll_period = 600
         log.info('Start polling.')
         schedule.addPeriodicEvent(self._minutely_diff_poll, 60, now=True, name='minutely_poll')
 
