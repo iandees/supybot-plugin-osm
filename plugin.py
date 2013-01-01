@@ -224,15 +224,33 @@ class OSM(callbacks.Plugin):
                 handler = OscHandler()
                 parseOsm(gzipper, handler)
 
-                for (id, prim) in itertools.chain(handler.nodes.iteritems(), handler.ways.iteritems(), handler.relations.iteritems()):
+                for (id, prim) in handler.nodes.iteritems():
                     uid = str(prim['uid'])
-                    if uid not in seen_uids:
+                    if uid in seen_uids:
+                        continue
+                    else:
                         seen_uids[str(prim['uid'])] = {'changeset': prim['changeset'],
                                                        'username': prim['user']}
 
                     if 'lat' in prim and 'lat' not in seen_uids[str(prim['uid'])]:
                         seen_uids[str(prim['uid'])]['lat'] = prim['lat']
                         seen_uids[str(prim['uid'])]['lon'] = prim['lon']
+                
+                for (id, prim) in handler.ways.iteritems():
+                    uid = str(prim['uid'])
+                    if uid in seen_uids:
+                        continue
+                    else:
+                        seen_uids[str(prim['uid'])] = {'changeset': prim['changeset'],
+                                                       'username': prim['user']}
+                 
+                for (id, prim) in handler.relations.iteritems():
+                    uid = str(prim['uid'])
+                    if uid in seen_uids:
+                        continue
+                    else:
+                        seen_uids[str(prim['uid'])] = {'changeset': prim['changeset'],
+                                                       'username': prim['user']}
 
                 keep_updating = self.fetchNextState(state)
 
