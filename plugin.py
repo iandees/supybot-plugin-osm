@@ -208,6 +208,8 @@ class OSM(callbacks.Plugin):
 
             keep_updating = True
             while keep_updating:
+                seen_changesets = {}
+                
                 state = self.readState()
 
                 minuteNumber = int(isoToTimestamp(state['timestamp'])) / 60
@@ -225,6 +227,14 @@ class OSM(callbacks.Plugin):
                 parseOsm(gzipper, handler)
 
                 for (id, prim) in itertools.chain(handler.nodes.iteritems(), handler.ways.iteritems(), handler.relations.iteritems()):
+
+                    changeset_id = str(prim['changeset'])
+                    action = prim['action']
+                    changeset_data = seen_changesets.get(changeset_id, {})
+                    changeset_data[action] = changeset_data.get(action, 0) + 1
+                    changeset_data['last_modified'] = prim['timestamp']
+                    seen_changesets[changeset_id] = changeset_data
+
                     uid = str(prim['uid'])
                     if uid in seen_uids:
                         continue
@@ -235,6 +245,8 @@ class OSM(callbacks.Plugin):
                     if 'lat' in prim and 'lat' not in seen_uids[str(prim['uid'])]:
                         seen_uids[str(prim['uid'])]['lat'] = prim['lat']
                         seen_uids[str(prim['uid'])]['lon'] = prim['lon']
+
+                log.info("Changeset actions: %s" % seen_changesets)
  
                 keep_updating = self.fetchNextState(state)
 
