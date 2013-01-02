@@ -44,6 +44,7 @@ class OscHandler():
     if name in ('modify', 'delete', 'create'):
       self.action = name
     if name in ('node', 'way', 'relation'):
+      self.primitive['type'] = name
       self.primitive['id'] = int(attributes['id'])
       self.primitive['version'] = int(attributes['version'])
       self.primitive['changeset'] = int(attributes['changeset'])
@@ -107,7 +108,7 @@ _new_uid_edit_region_channels = {
     "#osm-by": ("by",),
     "#osm-ca": ("ca",),
     "#osm-ch": ("ch",),
-    "#osm-de": ("de",),
+    "#osm-de-announce": ("de",),
     "#osm-dk": ("dk",),
     "#osm-do": ("do",),
     "#osm-es": ("es",),
@@ -202,12 +203,9 @@ class OSM(callbacks.Plugin):
                 log.error("No state file found to poll minutelies.")
                 return
 
-            log.info("Looking for new users.")
-
             seen_uids = {}
 
-            keep_updating = True
-            while keep_updating:
+            while True:
                 seen_changesets = {}
                 
                 state = self.readState()
@@ -230,8 +228,12 @@ class OSM(callbacks.Plugin):
 
                     changeset_id = str(prim['changeset'])
                     action = prim['action']
+                    prim_type = prim['type']
+
                     changeset_data = seen_changesets.get(changeset_id, {})
-                    changeset_data[action] = changeset_data.get(action, 0) + 1
+                    cs_type_data = changeset_data.get(prim_type, {})
+                    cs_type_data[action] = cs_type_data.get(action, 0) + 1
+                    changeset_data[prim_type] = cs_type_data
                     changeset_data['last_modified'] = prim['timestamp']
                     seen_changesets[changeset_id] = changeset_data
 
@@ -246,9 +248,11 @@ class OSM(callbacks.Plugin):
                         seen_uids[str(prim['uid'])]['lat'] = prim['lat']
                         seen_uids[str(prim['uid'])]['lon'] = prim['lon']
 
-                log.info("Changeset actions: %s" % seen_changesets)
+                log.info("Changeset actions: %s" % json.dumps(seen_changesets))
  
                 keep_updating = self.fetchNextState(state)
+                if not keep_updating:
+                    break
 
             log.info("There were %s users editing this time." % len(seen_uids))
 
@@ -264,7 +268,7 @@ class OSM(callbacks.Plugin):
 
             f = open('uid.txt', 'a')
             for (uid, data) in seen_uids.iteritems():
-                f.write('%s\t%s\n' % (data['username'], uid))
+                f.write('%s\t%s\n' % (data['username'], uid).encode('utf-8'))
 
                 location = ""
                 country_code = None
@@ -295,7 +299,7 @@ class OSM(callbacks.Plugin):
                     except urllib2.HTTPError as e:
                         log.warn("HTTP problem when looking for edit location: %s" % (e))
 
-                response = "%s just started editing%s with changeset http://osm.org/browse/changeset/%s" % (data['username'], location, data['changeset'])
+                response = "%s just started editing%s with changeset http://osm.org/browse/changeset/%s" % (data['username'], location, data['changeset']).encode('utf-8')
                 log.info(response)
                 irc = world.ircs[0]
                 for chan in irc.state.channels:
