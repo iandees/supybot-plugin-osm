@@ -142,8 +142,6 @@ class OSM(callbacks.Plugin):
     def __init__(self, irc):
         self.__parent__ = super(OSM, self)
         self.__parent__.__init__(irc)
-        self.last_update_agreed = 0
-        self.last_update_disagreed = 0
         self._start_polling()
         self.irc = irc
 
