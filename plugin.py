@@ -273,7 +273,7 @@ class OSM(callbacks.Plugin):
                     
                     # Flag a changeset that's big and made up of all one primitive type
                     if total_changes > 1000 and (node_pct > 0.9 or way_pct > 0.9 or relation_pct > 0.9):
-                        cs_flags.append((id, "it is mostly changes to one data type."))
+                        cs_flags.append((id, "it is mostly changes to one data type"))
                     
                     creates = cs_data.get('node', {}).get('create', 0) + cs_data.get('way', {}).get('create', 0) + cs_data.get('relation', {}).get('create', 0)
                     mods = cs_data.get('node', {}).get('modify', 0) + cs_data.get('way', {}).get('modify', 0) + cs_data.get('relation', {}).get('modify', 0)
