@@ -286,7 +286,7 @@ class OSM(callbacks.Plugin):
                     if total_changes > 1000 and (create_pct > 0.9 or mod_pct > 0.9 or delete_pct > 0.9):
                         cs_flags.append((id, "it is mostly creates, modifies, or deletes"))
 
-                    log.info("CS %s: %s changes; %.2fn %.2fw %.2r; %.2fc %.2fm %.2fd" % (id, total_changes, node_pct, way_pct, relation_pct, create_pct, mod_pct, delete_pct))
+                    log.info("CS %s: %s changes; %.2fn %.2fw %.2fr; %.2fc %.2fm %.2fd" % (id, total_changes, node_pct, way_pct, relation_pct, create_pct, mod_pct, delete_pct))
                 
                 # Tell the channel about these problems
                 irc = world.ircs[0]
