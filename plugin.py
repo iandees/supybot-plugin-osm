@@ -203,9 +203,10 @@ class OSM(callbacks.Plugin):
 
             seen_uids = {}
 
-            while True:
-                seen_changesets = {}
+            state = self.readState()
 
+            while self.fetchNextState(state):
+                seen_changesets = {}
                 state = self.readState()
 
                 minuteNumber = int(isoToTimestamp(state['timestamp'])) / 60
@@ -247,10 +248,6 @@ class OSM(callbacks.Plugin):
                         seen_uids[str(prim['uid'])]['lon'] = prim['lon']
 
                 log.info("Changeset actions: %s" % json.dumps(seen_changesets))
-
-                keep_updating = self.fetchNextState(state)
-                if not keep_updating:
-                    break
 
             log.info("There were %s users editing this time." % len(seen_uids))
 
