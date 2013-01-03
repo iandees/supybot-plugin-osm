@@ -142,8 +142,9 @@ class OSM(callbacks.Plugin):
     def __init__(self, irc):
         self.__parent__ = super(OSM, self)
         self.__parent__.__init__(irc)
-        self._start_polling()
+        self.seen_changesets = {}
         self.irc = irc
+        self._start_polling()
 
     def die(self):
         self._stop_polling()
@@ -195,6 +196,7 @@ class OSM(callbacks.Plugin):
 
         return True
 
+    
     def _minutely_diff_poll(self):
         try:
             if not os.path.exists('state.txt'):
@@ -202,11 +204,11 @@ class OSM(callbacks.Plugin):
                 return
 
             seen_uids = {}
+            seen_changesets = self.seen_changesets
 
             state = self.readState()
 
             while self.fetchNextState(state):
-                seen_changesets = {}
                 state = self.readState()
 
                 minuteNumber = int(isoToTimestamp(state['timestamp'])) / 60
@@ -232,7 +234,9 @@ class OSM(callbacks.Plugin):
                     changeset_data = seen_changesets.get(changeset_id, {})
                     cs_type_data = changeset_data.get(prim_type, {})
                     cs_type_data[action] = cs_type_data.get(action, 0) + 1
+                    cs_type_data['total_changes'] = cs_type_data.get('total_changes', 0) + 1
                     changeset_data[prim_type] = cs_type_data
+                    changeset_data['total_changes'] = changeset_data.get('total_changes', 0) + 1
                     changeset_data['last_modified'] = prim['timestamp']
                     seen_changesets[changeset_id] = changeset_data
 
@@ -247,7 +251,57 @@ class OSM(callbacks.Plugin):
                         seen_uids[str(prim['uid'])]['lat'] = prim['lat']
                         seen_uids[str(prim['uid'])]['lon'] = prim['lon']
 
-                log.info("Changeset actions: %s" % json.dumps(seen_changesets))
+                #log.info("Changeset actions: %s" % json.dumps(seen_changesets))
+
+                # Check the changesets for anomolies
+                now = datetime.datetime.utcnow()
+                cs_flags = []
+                for (id, cs_data) in seen_changesets.items():
+                    last_modified = datetime.datetime.utcfromtimestamp(cs_data['last_modified'])
+                    age = (now - last_modified).seconds
+                    if age > 3600:
+                        log.info("Forgetting changeset %s because it's been %s seconds since we last saw it" % (id, age))
+                        del seen_changesets[id]
+                    
+                    total_changes = cs_data['total_changes']
+                    node_changes = cs_data.get('node', {}).get('total_changes', 0)
+                    way_changes = cs_data.get('way', {}).get('total_changes', 0)
+                    relation_changes = cs_data.get('relation', {}).get('total_changes', 0)
+                    node_pct = node_changes / float(total_changes)
+                    way_pct = way_changes / float(total_changes)
+                    relation_pct = relation_changes / float(total_changes)
+                    
+                    # Flag a changeset that's big and made up of all one primitive type
+                    if total_changes > 1000 and (node_pct > 0.9 or way_pct > 0.9 or relation_pct > 0.9):
+                        cs_flags.append((id, "it is mostly changes to one data type."))
+                    
+                    creates = cs_data.get('node', {}).get('create', 0) + cs_data.get('way', {}).get('create', 0) + cs_data.get('relation', {}).get('create', 0)
+                    mods = cs_data.get('node', {}).get('modify', 0) + cs_data.get('way', {}).get('modify', 0) + cs_data.get('relation', {}).get('modify', 0)
+                    deletes = cs_data.get('node', {}).get('delete', 0) + cs_data.get('way', {}).get('delete', 0) + cs_data.get('relation', {}).get('delete', 0)
+                    create_pct = creates / float(total_changes)
+                    mod_pct = mods / float(total_changes)
+                    delete_pct = deletes / float(total_changes)
+
+                    # Flag a changeset that's big and made up of only one change type
+                    if total_changes > 1000 and (create_pct > 0.9 or mod_pct > 0.9 or delete_pct > 0.9):
+                        cs_flags.append((id, "it is mostly creates, modifies, or deletes"))
+
+                    log.info("CS %s: %s changes; %.2fn %.2fw %.2r; %.2fc %.2fm %.2fd" % (id, total_changes, node_pct, way_pct, relation_pct, create_pct, mod_pct, delete_pct))
+                
+                # Tell the channel about these problems
+                irc = world.ircs[0]
+                for (cs_id, reason) in cs_flags:
+                    if seen_changesets[cs_id].get('alerted_already'):
+                        continue
+                    
+                    response = "Changeset %s is weird because %s. http://osm.org/browse/changeset/%s" % (cs_id, reason, cs_id)
+
+                    log.info(response)
+                    for chan in irc.state.channels:
+                        if chan == "#osm-bot":
+                            msg = ircmsgs.privmsg(chan, response)
+                            world.ircs[0].queueMsg(msg)
+                    seen_changesets[cs_id]['alerted_already'] = True
 
             log.info("There were %s users editing this time." % len(seen_uids))
 
@@ -263,7 +317,6 @@ class OSM(callbacks.Plugin):
 
             f = open('uid.txt', 'a')
             for (uid, data) in seen_uids.iteritems():
-                log.info('%s->%s' % (data['username'], uid))
                 f.write('%s\t%s\n' % (data['username'], uid))
 
                 location = ""
