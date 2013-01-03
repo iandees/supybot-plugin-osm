@@ -49,7 +49,7 @@ class OscHandler():
       self.primitive['version'] = int(attributes['version'])
       self.primitive['changeset'] = int(attributes['changeset'])
       self.primitive['uid'] = int(attributes.get('uid'))
-      self.primitive['user'] = attributes.get('user')
+      self.primitive['user'] = attributes.get('user').encode('utf-8')
       self.primitive['timestamp'] = isoToTimestamp(attributes['timestamp'])
       self.primitive['tags'] = {}
       self.primitive['action'] = self.action
@@ -57,8 +57,8 @@ class OscHandler():
       self.primitive['lat'] = float(attributes['lat'])
       self.primitive['lon'] = float(attributes['lon'])
     elif name == 'tag':
-      key = attributes['k']
-      val = attributes['v']
+      key = attributes['k'].encode('utf-8')
+      val = attributes['v'].encode('utf-8')
       self.primitive['tags'][key] = val
     elif name == 'way':
       self.primitive['nodes'] = []
@@ -73,7 +73,7 @@ class OscHandler():
       self.primitive['members'].append(
                                     {
                                      'type': attributes['type'],
-                                     'role': attributes['role'],
+                                     'role': attributes['role'].encode('utf-8'),
                                      'ref': attributes['ref']
                                     })
 
@@ -268,7 +268,8 @@ class OSM(callbacks.Plugin):
 
             f = open('uid.txt', 'a')
             for (uid, data) in seen_uids.iteritems():
-                f.write('%s\t%s\n' % (data['username'], uid).encode('utf-8'))
+                log.info('%s->%s' % (data['username'], uid))
+                f.write('%s\t%s\n' % (data['username'], uid))
 
                 location = ""
                 country_code = None
@@ -296,10 +297,11 @@ class OSM(callbacks.Plugin):
                                 location = "%s, %s" % (address.get('hamlet'), location)
 
                             location = " near %s" % (location)
+                            location = location.encode('utf-8')
                     except urllib2.HTTPError as e:
                         log.warn("HTTP problem when looking for edit location: %s" % (e))
 
-                response = "%s just started editing%s with changeset http://osm.org/browse/changeset/%s" % (data['username'], location, data['changeset']).encode('utf-8')
+                response = "%s just started editing%s with changeset http://osm.org/browse/changeset/%s" % (data['username'], location, data['changeset'])
                 log.info(response)
                 irc = world.ircs[0]
                 for chan in irc.state.channels:
