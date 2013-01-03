@@ -31,73 +31,73 @@ import json
 import re
 
 class OscHandler():
-  def __init__(self):
-    self.changes = {}
-    self.nodes = {}
-    self.ways = {}
-    self.relations = {}
-    self.action = ""
-    self.primitive = {}
-    self.missingNds = set()
+    def __init__(self):
+        self.changes = {}
+        self.nodes = {}
+        self.ways = {}
+        self.relations = {}
+        self.action = ""
+        self.primitive = {}
+        self.missingNds = set()
 
-  def startElement(self, name, attributes):
-    if name in ('modify', 'delete', 'create'):
-      self.action = name
-    if name in ('node', 'way', 'relation'):
-      self.primitive['type'] = name
-      self.primitive['id'] = int(attributes['id'])
-      self.primitive['version'] = int(attributes['version'])
-      self.primitive['changeset'] = int(attributes['changeset'])
-      self.primitive['uid'] = int(attributes.get('uid'))
-      self.primitive['user'] = attributes.get('user').encode('utf-8')
-      self.primitive['timestamp'] = isoToTimestamp(attributes['timestamp'])
-      self.primitive['tags'] = {}
-      self.primitive['action'] = self.action
-    if name == 'node':
-      self.primitive['lat'] = float(attributes['lat'])
-      self.primitive['lon'] = float(attributes['lon'])
-    elif name == 'tag':
-      key = attributes['k'].encode('utf-8')
-      val = attributes['v'].encode('utf-8')
-      self.primitive['tags'][key] = val
-    elif name == 'way':
-      self.primitive['nodes'] = []
-    elif name == 'relation':
-      self.primitive['members'] = []
-    elif name == 'nd':
-      ref = int(attributes['ref'])
-      self.primitive['nodes'].append(ref)
-      if ref not in self.nodes:
-        self.missingNds.add(ref)
-    elif name == 'member':
-      self.primitive['members'].append(
+    def startElement(self, name, attributes):
+        if name in ('modify', 'delete', 'create'):
+            self.action = name
+        if name in ('node', 'way', 'relation'):
+            self.primitive['type'] = name
+            self.primitive['id'] = int(attributes['id'])
+            self.primitive['version'] = int(attributes['version'])
+            self.primitive['changeset'] = int(attributes['changeset'])
+            self.primitive['uid'] = int(attributes.get('uid'))
+            self.primitive['user'] = attributes.get('user').encode('utf-8')
+            self.primitive['timestamp'] = isoToTimestamp(attributes['timestamp'])
+            self.primitive['tags'] = {}
+            self.primitive['action'] = self.action
+        if name == 'node':
+            self.primitive['lat'] = float(attributes['lat'])
+            self.primitive['lon'] = float(attributes['lon'])
+        elif name == 'tag':
+            key = attributes['k'].encode('utf-8')
+            val = attributes['v'].encode('utf-8')
+            self.primitive['tags'][key] = val
+        elif name == 'way':
+            self.primitive['nodes'] = []
+        elif name == 'relation':
+            self.primitive['members'] = []
+        elif name == 'nd':
+            ref = int(attributes['ref'])
+            self.primitive['nodes'].append(ref)
+            if ref not in self.nodes:
+                self.missingNds.add(ref)
+        elif name == 'member':
+            self.primitive['members'].append(
                                     {
                                      'type': attributes['type'],
                                      'role': attributes['role'].encode('utf-8'),
                                      'ref': attributes['ref']
                                     })
 
-  def endElement(self, name):
-    if name == 'node':
-      self.nodes[self.primitive['id']] = self.primitive
-    elif name == 'way':
-      self.ways[self.primitive['id']] = self.primitive
-    elif name == 'relation':
-      self.relations[self.primitive['id']] = self.primitive
-    if name in ('node', 'way', 'relation'):
-      self.primitive = {}
+    def endElement(self, name):
+        if name == 'node':
+            self.nodes[self.primitive['id']] = self.primitive
+        elif name == 'way':
+            self.ways[self.primitive['id']] = self.primitive
+        elif name == 'relation':
+            self.relations[self.primitive['id']] = self.primitive
+        if name in ('node', 'way', 'relation'):
+            self.primitive = {}
 
 def isoToTimestamp(isotime):
-  t = datetime.datetime.strptime(isotime, "%Y-%m-%dT%H:%M:%SZ")
-  return calendar.timegm(t.utctimetuple())
+    t = datetime.datetime.strptime(isotime, "%Y-%m-%dT%H:%M:%SZ")
+    return calendar.timegm(t.utctimetuple())
 
 def parseOsm(source, handler):
-  for event, elem in ElementTree.iterparse(source, events=('start', 'end')):
-    if event == 'start':
-      handler.startElement(elem.tag, elem.attrib)
-    elif event == 'end':
-      handler.endElement(elem.tag)
-    elem.clear()
+    for event, elem in ElementTree.iterparse(source, events=('start', 'end')):
+        if event == 'start':
+            handler.startElement(elem.tag, elem.attrib)
+        elif event == 'end':
+            handler.endElement(elem.tag)
+        elem.clear()
 
 _new_uid_edit_region_channels = {
     "#osm-ar": ("ar",),
@@ -205,7 +205,7 @@ class OSM(callbacks.Plugin):
 
             while True:
                 seen_changesets = {}
-                
+
                 state = self.readState()
 
                 minuteNumber = int(isoToTimestamp(state['timestamp'])) / 60
@@ -247,7 +247,7 @@ class OSM(callbacks.Plugin):
                         seen_uids[str(prim['uid'])]['lon'] = prim['lon']
 
                 log.info("Changeset actions: %s" % json.dumps(seen_changesets))
- 
+
                 keep_updating = self.fetchNextState(state)
                 if not keep_updating:
                     break
@@ -352,7 +352,7 @@ class OSM(callbacks.Plugin):
 
     def node(self, irc, msg, args, node_id):
         """<node_id>
-        
+
         Shows information about the specified OSM node ID."""
         baseUrl = "http://osm.org"
 
@@ -401,13 +401,13 @@ class OSM(callbacks.Plugin):
                                                                           self.prettyDate(timestamp),
                                                                           tag_str,
                                                                           node_id)
-        
+
         irc.reply(response.encode('utf-8'))
     node = wrap(node, ['int'])
 
     def way(self, irc, msg, args, way_id):
         """<way_id>
-        
+
         Shows information about the specified OSM way ID."""
         baseUrl = "http://osm.org"
 
@@ -459,13 +459,13 @@ class OSM(callbacks.Plugin):
 
         response = "Way %s: version %s by %s edited %s with %s and %s http://osm.org/browse/way/%s" % \
                 (way_id, version, username, self.prettyDate(timestamp), nd_refs_str, tag_str, way_id)
-        
+
         irc.reply(response.encode('utf-8'))
     way = wrap(way, ['int'])
 
     def relation(self, irc, msg, args, relation_id):
         """<relation_id>
-        
+
         Shows information about the specified OSM relation ID."""
         baseUrl = "http://osm.org"
 
@@ -517,13 +517,13 @@ class OSM(callbacks.Plugin):
 
         response = "Relation %s: version %s by %s edited %s with %s and %s http://osm.org/browse/relation/%s" % \
                 (relation_id, version, username, self.prettyDate(timestamp), members_str, tag_str, relation_id)
-        
+
         irc.reply(response.encode('utf-8'))
     relation = wrap(relation, ['int'])
 
     def changeset(self, irc, msg, args, changeset_id):
         """<changeset_id>
-        
+
         Shows information about the specified OSM changeset ID."""
         baseUrl = "http://osm.org"
 
@@ -574,7 +574,7 @@ class OSM(callbacks.Plugin):
 
     def last_edit(self, irc, msg, args, username):
         """<username>
-        
+
         Shows information about the last edit for the given user."""
         baseUrl = "http://osm.org"
 
@@ -618,13 +618,13 @@ class OSM(callbacks.Plugin):
         updated = self.isoToTimestamp(timestamp)
 
         response = "User %s last edited %s with changeset %s" % (author, self.prettyDate(updated), changeset_id)
-        
+
         irc.reply(response.encode('utf-8'))
     lastedit = wrap(last_edit, ['anything'])
 
     def taginfo(self, irc, msg, args, tag_query):
         """<tag key>[=<tag value>|*]
-        
+
         Shows information about the specified tag key/value combination."""
         baseUrl = "http://taginfo.openstreetmap.org"
 
@@ -653,7 +653,7 @@ class OSM(callbacks.Plugin):
             else:
                 j = urllib2.urlopen('%s/api/2/db/tags/overview?key=%s&value=%s' % (baseUrl, urllib.quote(k), urllib.quote(v)), timeout=30.0)
                 data = json.load(j)
-            
+
                 response = "Tag %s=%s appears %s times in the planet. http://taginfo.osm.org/tags/%s" % (k, v, data['all']['count'], urllib.quote("%s=%s" % (k,v)))
             irc.reply(response.encode('utf-8'))
         except urllib2.URLError as e:
