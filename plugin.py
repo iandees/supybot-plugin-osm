@@ -291,7 +291,7 @@ class OSM(callbacks.Plugin):
                 # Tell the channel about these problems
                 irc = world.ircs[0]
                 for (cs_id, reason) in cs_flags:
-                    if seen_changesets[cs_id].get('alerted_already'):
+                    if cs_id in seen_changesets and seen_changesets[cs_id].get('alerted_already'):
                         continue
                     
                     response = "Changeset %s is weird because %s. http://osm.org/browse/changeset/%s" % (cs_id, reason, cs_id)
