@@ -132,6 +132,7 @@ _new_uid_edit_region_channels = {
     "#OSM.se": ("se",),
     "#osm-ua": ("ua",),
     "#osm-us": ("us",),
+    "#osm-za": ("za",),
 }
 
 class OSM(callbacks.Plugin):
