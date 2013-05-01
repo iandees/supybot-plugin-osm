@@ -235,57 +235,61 @@ class OSM(callbacks.Plugin):
         return (country_code, location)
 
     def _notes_rss_poll(self):
-        this_run_newest_timestamp = None
-        item = dict()
+        try:
+            this_run_newest_timestamp = None
+            item = dict()
 
-        url = 'http://api.openstreetmap.org/api/0.6/notes/feed'
-        source = urllib2.urlopen(url)
-        log.info("Requesting %s" % url)
+            url = 'http://api.openstreetmap.org/api/0.6/notes/feed'
+            source = urllib2.urlopen(url)
+            log.info("Requesting %s" % url)
 
-        for event, elem in ElementTree.iterparse(source, events=('start', 'end')):
-            name = elem.tag
-            if event == 'end':
-                if name == 'title':
-                    item['title'] = elem.text
-                elif name == 'author':
-                    item['author'] = elem.text
-                elif name == '{http://www.w3.org/2003/01/geo/wgs84_pos#}lat':
-                    item['lat'] = float(elem.text)
-                elif name == '{http://www.w3.org/2003/01/geo/wgs84_pos#}long':
-                    item['lon'] = float(elem.text)
-                elif name == 'link':
-                    item['link'] = elem.text
-                elif name == 'pubDate':
-                    item['time'] = self.pubdateToTimestamp(elem.text)
-                elif name == 'description':
-                    item['description'] = elem.text
-                elif name == 'item':
-                    if this_run_newest_timestamp is None or item['time'] > this_run_newest_timestamp:
-                        this_run_newest_timestamp = item['time']
+            for event, elem in ElementTree.iterparse(source, events=('start', 'end')):
+                name = elem.tag
+                if event == 'end':
+                    if name == 'title':
+                        item['title'] = elem.text
+                    elif name == 'author':
+                        item['author'] = elem.text
+                    elif name == '{http://www.w3.org/2003/01/geo/wgs84_pos#}lat':
+                        item['lat'] = float(elem.text)
+                    elif name == '{http://www.w3.org/2003/01/geo/wgs84_pos#}long':
+                        item['lon'] = float(elem.text)
+                    elif name == 'link':
+                        item['link'] = elem.text
+                    elif name == 'pubDate':
+                        item['time'] = self.pubdateToTimestamp(elem.text)
+                    elif name == 'description':
+                        item['description'] = elem.text
+                    elif name == 'item':
+                        if this_run_newest_timestamp is None or item['time'] > this_run_newest_timestamp:
+                            this_run_newest_timestamp = item['time']
 
-                    if self.note_run_newest_time is not None and self.note_run_newest_time > item['time']:
-                        break
+                        if self.note_run_newest_time is not None and self.note_run_newest_time > item['time']:
+                            break
 
-                    if item['title'].startswith('new note'):
-                        author = item['author'] if 'author' in item else 'Anonymous'
-                        location = ""
-                        country_code = None
+                        if item['title'].startswith('new note'):
+                            author = item['author'] if 'author' in item else 'Anonymous'
+                            location = ""
+                            country_code = None
 
-                        try:
-                            country_code, location = self.reverse_geocode(item['lat'], item['lon'])
-                        except urllib2.HTTPError as e:
-                            log.warn("HTTP problem when looking for note location: %s" % (e))
+                            try:
+                                country_code, location = self.reverse_geocode(item['lat'], item['lon'])
+                            except urllib2.HTTPError as e:
+                                log.warn("HTTP problem when looking for note location: %s" % (e))
 
-                        response = "%s created a new note%s: %s" % (author, location, item['link'].replace('api.openstreetmap', 'osm'))
-                        log.info(response)
-                        irc = world.ircs[0]
-                        for chan in irc.state.channels:
-                            if chan == "#osm-bot" or country_code in _note_edit_region_channels.get(chan, ()):
-                                msg = ircmsgs.privmsg(chan, response)
-                                world.ircs[0].queueMsg(msg)
-                    item = dict()
+                            response = "%s created a new note%s: %s" % (author, location, item['link'].replace('api.openstreetmap', 'osm'))
+                            log.info(response)
+                            irc = world.ircs[0]
+                            for chan in irc.state.channels:
+                                if chan == "#osm-bot" or country_code in _note_edit_region_channels.get(chan, ()):
+                                    msg = ircmsgs.privmsg(chan, response)
+                                    world.ircs[0].queueMsg(msg)
+                        item = dict()
 
-        self.note_run_newest_time = this_run_newest_timestamp
+            self.note_run_newest_time = this_run_newest_timestamp
+
+        except Exception as e:
+            log.error("Exception processing new users: %s" % traceback.format_exc(e))
 
     def _minutely_diff_poll(self):
         try:
