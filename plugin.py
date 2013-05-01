@@ -209,6 +209,7 @@ class OSM(callbacks.Plugin):
     def reverse_geocode(self, lat, lon):
         urldata = urllib2.urlopen('http://nominatim.openstreetmap.org/reverse?format=json&lat=%s&lon=%s' % (lat, lon))
 
+        location = ""
         info = json.load(urldata)
         if 'address' in info:
             address = info.get('address')
@@ -237,8 +238,9 @@ class OSM(callbacks.Plugin):
         this_run_newest_timestamp = None
         item = dict()
 
+        url = 'http://api.openstreetmap.org/api/0.6/notes/feed'
         source = urllib2.urlopen(url)
-        print "Requesting %s" % url
+        log.info("Requesting %s" % url)
 
         for event, elem in ElementTree.iterparse(source, events=('start', 'end')):
             name = elem.tag
@@ -271,11 +273,10 @@ class OSM(callbacks.Plugin):
 
                         try:
                             country_code, location = self.reverse_geocode(item['lat'], item['lon'])
-                            location = location.encode('utf-8')
                         except urllib2.HTTPError as e:
                             log.warn("HTTP problem when looking for note location: %s" % (e))
 
-                        response = "%s created a new note near %s, %s: %s" % (author, location, item['link'].replace('api.openstreetmap', 'osm'))
+                        response = "%s created a new note%s: %s" % (author, location, item['link'].replace('api.openstreetmap', 'osm'))
                         log.info(response)
                         irc = world.ircs[0]
                         for chan in irc.state.channels:
@@ -349,7 +350,7 @@ class OSM(callbacks.Plugin):
                     if age > 3600:
                         log.info("Forgetting changeset %s because it's been %s seconds since we last saw it" % (id, age))
                         del seen_changesets[id]
-                    
+
                     total_changes = cs_data['total_changes']
                     node_changes = cs_data.get('node', {}).get('total_changes', 0)
                     way_changes = cs_data.get('way', {}).get('total_changes', 0)
@@ -357,11 +358,11 @@ class OSM(callbacks.Plugin):
                     node_pct = node_changes / float(total_changes)
                     way_pct = way_changes / float(total_changes)
                     relation_pct = relation_changes / float(total_changes)
-                    
+
                     # Flag a changeset that's big and made up of all one primitive type
                     if total_changes > 1000 and (node_pct > 0.9 or way_pct > 0.9 or relation_pct > 0.9):
                         cs_flags.append((id, "it is mostly changes to one data type"))
-                    
+
                     creates = cs_data.get('node', {}).get('create', 0) + cs_data.get('way', {}).get('create', 0) + cs_data.get('relation', {}).get('create', 0)
                     mods = cs_data.get('node', {}).get('modify', 0) + cs_data.get('way', {}).get('modify', 0) + cs_data.get('relation', {}).get('modify', 0)
                     deletes = cs_data.get('node', {}).get('delete', 0) + cs_data.get('way', {}).get('delete', 0) + cs_data.get('relation', {}).get('delete', 0)
@@ -374,13 +375,13 @@ class OSM(callbacks.Plugin):
                         cs_flags.append((id, "it is mostly creates, modifies, or deletes"))
 
                     log.info("CS %s: %s changes; %.2fn %.2fw %.2fr; %.2fc %.2fm %.2fd" % (id, total_changes, node_pct, way_pct, relation_pct, create_pct, mod_pct, delete_pct))
-                
+
                 # Tell the channel about these problems
                 irc = world.ircs[0]
                 for (cs_id, reason) in cs_flags:
                     if cs_id in seen_changesets and seen_changesets[cs_id].get('alerted_already'):
                         continue
-                    
+
                     response = "Changeset %s is weird because %s. http://osm.org/browse/changeset/%s" % (cs_id, reason, cs_id)
 
                     log.info(response)
@@ -411,7 +412,6 @@ class OSM(callbacks.Plugin):
                 if 'lat' in data:
                     try:
                         country_code, location = self.reverse_geocode(data['lat'], data['lon'])
-                        location = location.encode('utf-8')
                     except urllib2.HTTPError as e:
                         log.warn("HTTP problem when looking for edit location: %s" % (e))
 
