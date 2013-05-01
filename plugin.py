@@ -90,14 +90,17 @@ class OscHandler():
         if name in ('node', 'way', 'relation'):
             self.primitive = {}
 
+
 def isoToTimestamp(isotime):
     t = datetime.datetime.strptime(isotime, "%Y-%m-%dT%H:%M:%SZ")
     return calendar.timegm(t.utctimetuple())
 
+
 def pubdateToTimestamp(pubdate):
     # Wed, 01 May 2013 18:51:34 +0000
-    t = datetime.datetime.strptime(isotime, "%a, %d %B %Y %H:%M:%S %z")
+    t = datetime.datetime.strptime(pubdate, "%a, %d %B %Y %H:%M:%S +0000")
     return calendar.timegm(t.utctimetuple())
+
 
 def parseOsm(source, handler):
     for event, elem in ElementTree.iterparse(source, events=('start', 'end')):
@@ -264,7 +267,7 @@ class OSM(callbacks.Plugin):
                     elif name == 'link':
                         item['link'] = elem.text
                     elif name == 'pubDate':
-                        item['time'] = self.pubdateToTimestamp(elem.text)
+                        item['time'] = pubdateToTimestamp(elem.text)
                     elif name == 'description':
                         item['description'] = elem.text
                     elif name == 'item':
