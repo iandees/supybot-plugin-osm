@@ -5,11 +5,8 @@
 #
 ###
 
-import supybot.utils as utils
 from supybot.commands import *
-import supybot.plugins as plugins
 import supybot.ircmsgs as ircmsgs
-import supybot.ircutils as ircutils
 import supybot.callbacks as callbacks
 import supybot.schedule as schedule
 import supybot.world as world
@@ -25,10 +22,9 @@ import calendar
 import urllib2
 import urllib
 import xml.etree.cElementTree as ElementTree
-from xml.sax.saxutils import unescape
 import os
 import json
-import re
+
 
 class OscHandler():
     def __init__(self):
@@ -166,7 +162,7 @@ class OSM(callbacks.Plugin):
         state = {}
         for line in sf:
             if line[0] == '#':
-              continue
+                continue
             (k, v) = line.split('=')
             state[k] = v.strip().replace("\\:", ":")
 
@@ -211,8 +207,6 @@ class OSM(callbacks.Plugin):
 
             while self.fetchNextState(state):
                 state = self.readState()
-
-                minuteNumber = int(isoToTimestamp(state['timestamp'])) / 60
 
                 # Grab the next sequence number and build a URL out of it
                 sqnStr = state['sequenceNumber'].zfill(9)
