@@ -26,6 +26,13 @@ import os
 import json
 
 
+stathat = None
+try:
+    from stathat import StatHat
+    stathat = StatHat()
+except:
+    pass
+
 class OscHandler():
     def __init__(self):
         self.changes = {}
@@ -364,7 +371,7 @@ class OSM(callbacks.Plugin):
                     relation_pct = relation_changes / float(total_changes)
 
                     # Flag a changeset that's big and made up of all one primitive type
-                    if total_changes > 1000 and (node_pct > 0.9 or way_pct > 0.9 or relation_pct > 0.9):
+                    if total_changes > 2000 and (node_pct > 0.97 or way_pct > 0.97 or relation_pct > 0.97):
                         cs_flags.append((id, "it is mostly changes to one data type"))
 
                     creates = cs_data.get('node', {}).get('create', 0) + cs_data.get('way', {}).get('create', 0) + cs_data.get('relation', {}).get('create', 0)
@@ -375,10 +382,8 @@ class OSM(callbacks.Plugin):
                     delete_pct = deletes / float(total_changes)
 
                     # Flag a changeset that's big and made up of only one change type
-                    if total_changes > 1000 and (create_pct > 0.9 or mod_pct > 0.9 or delete_pct > 0.9):
+                    if total_changes > 2000 and (create_pct > 0.97 or mod_pct > 0.97 or delete_pct > 0.97):
                         cs_flags.append((id, "it is mostly creates, modifies, or deletes"))
-
-                    log.info("CS %s: %s changes; %.2fn %.2fw %.2fr; %.2fc %.2fm %.2fd" % (id, total_changes, node_pct, way_pct, relation_pct, create_pct, mod_pct, delete_pct))
 
                 # Tell the channel about these problems
                 irc = world.ircs[0]
@@ -396,6 +401,8 @@ class OSM(callbacks.Plugin):
                     seen_changesets[cs_id]['alerted_already'] = True
 
             log.info("There were %s users editing this time." % len(seen_uids))
+            if stathat:
+                stathat.ez_post_value('ian.dees@gmail.com', 'users editing this minute', len(seen_uids), state['timestamp'])
 
             f = open('uid.txt', 'r')
             for line in f:
@@ -406,6 +413,9 @@ class OSM(callbacks.Plugin):
                 if len(seen_uids) == 0:
                     break
             f.close()
+
+            if stathat:
+                stathat.ez_post_value('ian.dees@gmail.com', 'new users this minute', len(seen_uids), state['timestamp'])
 
             f = open('uid.txt', 'a')
             for (uid, data) in seen_uids.iteritems():
