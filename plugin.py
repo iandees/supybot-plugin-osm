@@ -162,7 +162,6 @@ class OSM(callbacks.Plugin):
         self.seen_changesets = {}
         self.irc = irc
         self._start_polling()
-        self.note_run_newest_time = None
 
     def die(self):
         self._stop_polling()
@@ -274,8 +273,11 @@ class OSM(callbacks.Plugin):
                         if this_run_newest_timestamp is None or item['time'] > this_run_newest_timestamp:
                             this_run_newest_timestamp = item['time']
 
-                        if self.note_run_newest_time is not None and self.note_run_newest_time > item['time']:
-                            break
+                        try:
+                            if self.note_run_newest_time is not None and self.note_run_newest_time > item['time']:
+                                break
+                        except AttributeError:
+                            self.note_run_newest_time = None
 
                         if item['title'].startswith('new note'):
                             author = item['author'] if 'author' in item else 'Anonymous'
