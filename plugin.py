@@ -87,6 +87,11 @@ def isoToTimestamp(isotime):
     t = datetime.datetime.strptime(isotime, "%Y-%m-%dT%H:%M:%SZ")
     return calendar.timegm(t.utctimetuple())
 
+def pubdateToTimestamp(pubdate):
+    # Wed, 01 May 2013 18:51:34 +0000
+    t = datetime.datetime.strptime(isotime, "%a, %d %B %Y %H:%M:%S %z")
+    return calendar.timegm(t.utctimetuple())
+
 def parseOsm(source, handler):
     for event, elem in ElementTree.iterparse(source, events=('start', 'end')):
         if event == 'start':
@@ -131,6 +136,11 @@ _new_uid_edit_region_channels = {
     "#osm-za": ("za",),
 }
 
+_new_uid_edit_region_channels = {
+    "#osm-us": ("us",),
+}
+
+
 class OSM(callbacks.Plugin):
     """Add the help for "@plugin help OSM" here
     This should describe *how* to use this plugin."""
@@ -142,6 +152,7 @@ class OSM(callbacks.Plugin):
         self.seen_changesets = {}
         self.irc = irc
         self._start_polling()
+        self.note_run_newest_time = None
 
     def die(self):
         self._stop_polling()
@@ -150,10 +161,12 @@ class OSM(callbacks.Plugin):
     def _start_polling(self):
         log.info('Start polling.')
         schedule.addPeriodicEvent(self._minutely_diff_poll, 60, now=True, name='minutely_poll')
+        schedule.addPeriodicEvent(self._notes_rss_poll, 300, now=True, name='notes_rss_poll')
 
     def _stop_polling(self):
         log.info('Stop polling.')
         schedule.removeEvent('minutely_poll')
+        schedule.removeEvent('notes_rss_poll')
 
     def readState(self):
         # Read the state.txt
@@ -193,7 +206,86 @@ class OSM(callbacks.Plugin):
 
         return True
 
-    
+    def reverse_geocode(self, lat, lon):
+        urldata = urllib2.urlopen('http://nominatim.openstreetmap.org/reverse?format=json&lat=%s&lon=%s' % (lat, lon))
+
+        info = json.load(urldata)
+        if 'address' in info:
+            address = info.get('address')
+
+            country_code = address.get('country_code')
+
+            if 'country' in address:
+                location = address.get('country')
+            if 'state' in address:
+                location = "%s, %s" % (address.get('state'), location)
+            if 'county' in address:
+                location = "%s, %s" % (address.get('county'), location)
+            if 'administrative' in address:
+                location = "%s, %s" % (address.get('administrative'), location)
+            if 'city' in address:
+                location = "%s, %s" % (address.get('city'), location)
+            if 'hamlet' in address:
+                location = "%s, %s" % (address.get('hamlet'), location)
+
+            location = " near %s" % (location)
+            location = location.encode('utf-8')
+
+        return (country_code, location)
+
+    def _notes_rss_poll(self):
+        this_run_newest_timestamp = None
+        item = dict()
+
+        source = urllib2.urlopen(url)
+        print "Requesting %s" % url
+
+        for event, elem in ElementTree.iterparse(source, events=('start', 'end')):
+            name = elem.tag
+            if event == 'end':
+                if name == 'title':
+                    item['title'] = elem.text
+                elif name == 'author':
+                    item['author'] = elem.text
+                elif name == '{http://www.w3.org/2003/01/geo/wgs84_pos#}lat':
+                    item['lat'] = float(elem.text)
+                elif name == '{http://www.w3.org/2003/01/geo/wgs84_pos#}long':
+                    item['lon'] = float(elem.text)
+                elif name == 'link':
+                    item['link'] = elem.text
+                elif name == 'pubDate':
+                    item['time'] = self.pubdateToTimestamp(elem.text)
+                elif name == 'description':
+                    item['description'] = elem.text
+                elif name == 'item':
+                    if this_run_newest_timestamp is None or item['time'] > this_run_newest_timestamp:
+                        this_run_newest_timestamp = item['time']
+
+                    if self.note_run_newest_time is not None and self.note_run_newest_time > item['time']:
+                        break
+
+                    if item['title'].startswith('new note'):
+                        author = item['author'] if 'author' in item else 'Anonymous'
+                        location = ""
+                        country_code = None
+
+                        try:
+                            country_code, location = self.reverse_geocode(item['lat'], item['lon'])
+                            location = location.encode('utf-8')
+                        except urllib2.HTTPError as e:
+                            log.warn("HTTP problem when looking for note location: %s" % (e))
+
+                        response = "%s created a new note near %s, %s: %s" % (author, location, item['link'].replace('api.openstreetmap', 'osm'))
+                        log.info(response)
+                        irc = world.ircs[0]
+                        for chan in irc.state.channels:
+                            if chan == "#osm-bot" or country_code in _note_edit_region_channels.get(chan, ()):
+                                msg = ircmsgs.privmsg(chan, response)
+                                world.ircs[0].queueMsg(msg)
+                    item = dict()
+
+        self.note_run_newest_time = this_run_newest_timestamp
+
     def _minutely_diff_poll(self):
         try:
             if not os.path.exists('state.txt'):
@@ -318,29 +410,8 @@ class OSM(callbacks.Plugin):
                 country_code = None
                 if 'lat' in data:
                     try:
-                        urldata = urllib2.urlopen('http://nominatim.openstreetmap.org/reverse?format=json&lat=%s&lon=%s' % (data['lat'], data['lon']))
-
-                        info = json.load(urldata)
-                        if 'address' in info:
-                            address = info.get('address')
-
-                            country_code = address.get('country_code')
-
-                            if 'country' in address:
-                                location = address.get('country')
-                            if 'state' in address:
-                                location = "%s, %s" % (address.get('state'), location)
-                            if 'county' in address:
-                                location = "%s, %s" % (address.get('county'), location)
-                            if 'administrative' in address:
-                                location = "%s, %s" % (address.get('administrative'), location)
-                            if 'city' in address:
-                                location = "%s, %s" % (address.get('city'), location)
-                            if 'hamlet' in address:
-                                location = "%s, %s" % (address.get('hamlet'), location)
-
-                            location = " near %s" % (location)
-                            location = location.encode('utf-8')
+                        country_code, location = self.reverse_geocode(data['lat'], data['lon'])
+                        location = location.encode('utf-8')
                     except urllib2.HTTPError as e:
                         log.warn("HTTP problem when looking for edit location: %s" % (e))
 
