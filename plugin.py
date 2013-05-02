@@ -264,7 +264,7 @@ class OSM(callbacks.Plugin):
                     note = json.load(result)
                     attrs = note.get('properties')
                     opening_comment = attrs['comments'][0]
-                    author = opening_comment['user'] if 'user' in opening_comment else 'Anonymous'
+                    author = opening_comment['user'].encode('utf-8') if 'user' in opening_comment else 'Anonymous'
                     geo = note.get('geometry').get('coordinates')
                     link = 'http://osm.org/browse/note/%d' % last_note_id
                     location = ""
