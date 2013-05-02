@@ -177,9 +177,9 @@ class OSM(callbacks.Plugin):
         schedule.removeEvent('minutely_poll')
         schedule.removeEvent('notes_rss_poll')
 
-    def readState(self):
+    def readState(self, filename):
         # Read the state.txt
-        sf = open('state.txt', 'r')
+        sf = open(filename, 'r')
 
         state = {}
         for line in sf:
@@ -245,6 +245,12 @@ class OSM(callbacks.Plugin):
 
     def _notes_rss_poll(self):
         try:
+            if not os.path.exists('notes_state.txt'):
+                log.error("No notes_state file found to poll note feed.")
+                return
+
+            notes_state = self.readState('notes_state.txt')
+            last_run_newest_timestamp = notes_state.get('newest_timestamp', None)
             this_run_newest_timestamp = None
             item = dict()
 
@@ -273,12 +279,9 @@ class OSM(callbacks.Plugin):
                         if this_run_newest_timestamp is None or item['time'] > this_run_newest_timestamp:
                             this_run_newest_timestamp = item['time']
 
-                        try:
-                            if self.note_run_newest_time is not None and self.note_run_newest_time >= item['time']:
-                                break
-                        except AttributeError:
-                            log.info("The OSM plugin didn't have a note run time. This should only happen once.")
-                            self.note_run_newest_time = None
+                        if last_run_newest_timestamp is not None and last_run_newest_timestamp >= item['time']:
+                            log.info("Last run had a newest time of %s and this run was %s, so stopping here." % (last_run_newest_timestamp, this_run_newest_timestamp))
+                            break
 
                         if item['title'].startswith('new note'):
                             author = item['author'] if 'author' in item else 'Anonymous'
@@ -299,7 +302,10 @@ class OSM(callbacks.Plugin):
                                     world.ircs[0].queueMsg(msg)
                         item = dict()
 
-            self.note_run_newest_time = this_run_newest_timestamp
+            if last_run_newest_timestamp != this_run_newest_timestamp:
+                last_run_newest_timestamp = this_run_newest_timestamp
+                with open('notes_state.txt', 'w') as f:
+                    f.write('newest_timestamp=%s\n' % last_run_newest_timestamp)
 
         except Exception as e:
             log.error("Exception processing new users: %s" % traceback.format_exc(e))
@@ -313,10 +319,10 @@ class OSM(callbacks.Plugin):
             seen_uids = {}
             seen_changesets = self.seen_changesets
 
-            state = self.readState()
+            state = self.readState('state.txt')
 
             while self.fetchNextState(state):
-                state = self.readState()
+                state = self.readState('state.txt')
 
                 # Grab the next sequence number and build a URL out of it
                 sqnStr = state['sequenceNumber'].zfill(9)
