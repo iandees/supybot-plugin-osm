@@ -279,8 +279,8 @@ class OSM(callbacks.Plugin):
                         if this_run_newest_timestamp is None or item['time'] > this_run_newest_timestamp:
                             this_run_newest_timestamp = item['time']
 
-                        if last_run_newest_timestamp is not None and last_run_newest_timestamp >= item['time']:
-                            log.info("Last run had a newest time of %s and this run was %s, so stopping here." % (last_run_newest_timestamp, this_run_newest_timestamp))
+                        if last_run_newest_timestamp is not None and last_run_newest_timestamp == item['time']:
+                            log.info("Last run had a newest time of %s and the previous note was %s, so stopping here." % (last_run_newest_timestamp, item['time']))
                             break
 
                         if item['title'].startswith('new note'):
