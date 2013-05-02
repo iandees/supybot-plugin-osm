@@ -216,7 +216,8 @@ class OSM(callbacks.Plugin):
         return True
 
     def reverse_geocode(self, lat, lon):
-        urldata = urllib2.urlopen('http://nominatim.openstreetmap.org/reverse?format=json&lat=%s&lon=%s' % (lat, lon))
+        url = 'http://nominatim.openstreetmap.org/reverse?format=json&lat=%s&lon=%s' % (lat, lon)
+        urldata = urllib2.urlopen(url)
 
         location = ""
         info = json.load(urldata)
@@ -261,12 +262,10 @@ class OSM(callbacks.Plugin):
                 try:
                     result = urllib2.urlopen(url)
                     note = json.load(result)
-                    log.info("Note was %s" % json.dumps(note))
                     attrs = note.get('properties')
                     geo = note.get('geometry').get('coordinates')
                     author = attrs['author'] if 'author' in attrs else 'Anonymous'
                     link = 'http://osm.org/browse/note/%d' % last_note_id
-                    text = attrs['comments'][0]['text'][:50]
                     location = ""
                     country_code = None
 
@@ -275,8 +274,8 @@ class OSM(callbacks.Plugin):
                     except urllib2.HTTPError as e:
                         log.warn("HTTP problem when looking for note location: %s" % (e))
 
-                    response = "%s posted a new note%s; %s; %s" % (author, location, text, link)
-                    log.info(response)
+                    response = "%s posted a new note%s %s" % (author, location, link)
+                    log.info("Response is %s" % response)
                     irc = world.ircs[0]
                     for chan in irc.state.channels:
                         if chan == "#osm-bot" or country_code in _note_edit_region_channels.get(chan, ()):
