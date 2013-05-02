@@ -274,7 +274,7 @@ class OSM(callbacks.Plugin):
                             this_run_newest_timestamp = item['time']
 
                         try:
-                            if self.note_run_newest_time is not None and self.note_run_newest_time > item['time']:
+                            if self.note_run_newest_time is not None and self.note_run_newest_time >= item['time']:
                                 break
                         except AttributeError:
                             log.info("The OSM plugin didn't have a note run time. This should only happen once.")
@@ -290,7 +290,7 @@ class OSM(callbacks.Plugin):
                             except urllib2.HTTPError as e:
                                 log.warn("HTTP problem when looking for note location: %s" % (e))
 
-                            response = "%s created a new note%s: %s" % (author, location, item['link'].replace('api.openstreetmap', 'osm'))
+                            response = "%s posted a new note%s: %s" % (author, location, item['link'].replace('api.openstreetmap', 'osm'))
                             log.info(response)
                             irc = world.ircs[0]
                             for chan in irc.state.channels:
