@@ -251,7 +251,7 @@ class OSM(callbacks.Plugin):
                 log.error("No notes_state file found to poll note feed.")
                 return
 
-            notes_state = readState('notes_state.txt')
+            notes_state = self.readState('notes_state.txt')
             last_note_id = int(notes_state.get('last_note_id', None))
 
             while True:
