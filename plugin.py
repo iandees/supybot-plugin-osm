@@ -170,12 +170,12 @@ class OSM(callbacks.Plugin):
     def _start_polling(self):
         log.info('Start polling.')
         schedule.addPeriodicEvent(self._minutely_diff_poll, 60, now=True, name='minutely_poll')
-        #schedule.addPeriodicEvent(self._notes_rss_poll, 300, now=True, name='notes_rss_poll')
+        schedule.addPeriodicEvent(self._notes_rss_poll, 300, now=True, name='notes_rss_poll')
 
     def _stop_polling(self):
         log.info('Stop polling.')
         schedule.removeEvent('minutely_poll')
-        #schedule.removeEvent('notes_rss_poll')
+        schedule.removeEvent('notes_rss_poll')
 
     def readState(self, filename):
         # Read the state.txt
@@ -244,71 +244,54 @@ class OSM(callbacks.Plugin):
         return (country_code, location)
 
     def _notes_rss_poll(self):
+        url_templ = 'http://api.openstreetmap.org/api/0.6/notes/%d.json'
+
         try:
             if not os.path.exists('notes_state.txt'):
                 log.error("No notes_state file found to poll note feed.")
                 return
 
-            notes_state = self.readState('notes_state.txt')
-            last_run_newest_timestamp = notes_state.get('newest_timestamp', None)
-            this_run_newest_timestamp = None
-            item = dict()
+            notes_state = readState('notes_state.txt')
+            last_note_id = int(notes_state.get('last_note_id', None))
 
-            url = 'http://api.openstreetmap.org/api/0.6/notes/feed'
-            source = urllib2.urlopen(url)
-            log.info("Requesting %s" % url)
+            while True:
+                last_note_id += 1
+                url = url_templ % last_note_id
+                log.info("Requesting %s" % url)
+                try:
+                    result = urllib2.urlopen(url)
+                    note = json.load(result)
+                    attrs = note.get('properties')
+                    geo = note.get('geometry').get('coordinates')
+                    author = attrs['author'] if 'author' in attrs else 'Anonymous'
+                    link = 'http://osm.org/browse/note/%d' % last_note_id
+                    text = attrs['comments'][0]['text'][:50]
+                    location = ""
+                    country_code = None
 
-            for event, elem in ElementTree.iterparse(source, events=('start', 'end')):
-                name = elem.tag
-                if event == 'end':
-                    if name == 'title':
-                        item['title'] = elem.text
-                    elif name == 'author':
-                        item['author'] = elem.text
-                    elif name == '{http://www.w3.org/2003/01/geo/wgs84_pos#}lat':
-                        item['lat'] = float(elem.text)
-                    elif name == '{http://www.w3.org/2003/01/geo/wgs84_pos#}long':
-                        item['lon'] = float(elem.text)
-                    elif name == 'link':
-                        item['link'] = elem.text
-                    elif name == 'pubDate':
-                        item['time'] = pubdateToTimestamp(elem.text)
-                    elif name == 'description':
-                        item['description'] = elem.text
-                    elif name == 'item':
-                        if this_run_newest_timestamp is None or item['time'] > this_run_newest_timestamp:
-                            this_run_newest_timestamp = item['time']
+                    try:
+                        country_code, location = self.reverse_geocode(geo[1], geo[0])
+                    except urllib2.HTTPError as e:
+                        log.warn("HTTP problem when looking for note location: %s" % (e))
 
-                        if last_run_newest_timestamp is not None and last_run_newest_timestamp == item['time']:
-                            log.info("Last run had a newest time of %s and the previous note was %s, so stopping here." % (last_run_newest_timestamp, item['time']))
-                            break
+                    response = "%s posted a new note%s; %s; %s" % (author, location, text, link)
+                    log.info(response)
+                    irc = world.ircs[0]
+                    for chan in irc.state.channels:
+                        if chan == "#osm-bot" or country_code in _note_edit_region_channels.get(chan, ()):
+                            msg = ircmsgs.privmsg(chan, response)
+                            world.ircs[0].queueMsg(msg)
+                except urllib2.URLError, e:
+                    if e.code == 404:
+                        log.info("%s doesn't exist. Stopping." % last_note_id)
+                        last_note_id -= 1
+                        break
 
-                        if item['title'].startswith('new note'):
-                            author = item['author'] if 'author' in item else 'Anonymous'
-                            location = ""
-                            country_code = None
-
-                            try:
-                                country_code, location = self.reverse_geocode(item['lat'], item['lon'])
-                            except urllib2.HTTPError as e:
-                                log.warn("HTTP problem when looking for note location: %s" % (e))
-
-                            response = "%s posted a new note%s: %s" % (author, location, item['link'].replace('api.openstreetmap', 'osm'))
-                            log.info(response)
-                            irc = world.ircs[0]
-                            for chan in irc.state.channels:
-                                if chan == "#osm-bot" or country_code in _note_edit_region_channels.get(chan, ()):
-                                    msg = ircmsgs.privmsg(chan, response)
-                                    world.ircs[0].queueMsg(msg)
-                        item = dict()
-
-            if last_run_newest_timestamp != this_run_newest_timestamp:
-                last_run_newest_timestamp = this_run_newest_timestamp
-                with open('notes_state.txt', 'w') as f:
-                    f.write('newest_timestamp=%s\n' % last_run_newest_timestamp)
+            with open('notes_state.txt', 'w') as f:
+                f.write('last_note_id=%s\n' % last_note_id)
 
         except Exception as e:
-            log.error("Exception processing new users: %s" % traceback.format_exc(e))
+            log.error("Exception processing new notes: %s" % traceback.format_exc(e))
 
     def _minutely_diff_poll(self):
         try:
