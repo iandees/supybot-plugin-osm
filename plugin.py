@@ -263,8 +263,9 @@ class OSM(callbacks.Plugin):
                     result = urllib2.urlopen(url)
                     note = json.load(result)
                     attrs = note.get('properties')
+                    opening_comment = attrs['comments'][0]
+                    author = opening_comment['user'] if 'user' in opening_comment else 'Anonymous'
                     geo = note.get('geometry').get('coordinates')
-                    author = attrs['author'] if 'author' in attrs else 'Anonymous'
                     link = 'http://osm.org/browse/note/%d' % last_note_id
                     location = ""
                     country_code = None
