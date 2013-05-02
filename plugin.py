@@ -354,7 +354,6 @@ class OSM(callbacks.Plugin):
                     last_modified = datetime.datetime.utcfromtimestamp(cs_data['last_modified'])
                     age = (now - last_modified).seconds
                     if age > 3600:
-                        log.info("Forgetting changeset %s because it's been %s seconds since we last saw it" % (id, age))
                         del seen_changesets[id]
 
                     total_changes = cs_data['total_changes']
