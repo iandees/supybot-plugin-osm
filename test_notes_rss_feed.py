@@ -3,9 +3,10 @@ import time
 import datetime
 import calendar
 import urllib2
+import json
 import xml.etree.cElementTree as ElementTree
 
-url = 'http://api.openstreetmap.org/api/0.6/notes/feed'
+url_templ = 'http://api.openstreetmap.org/api/0.6/notes/%d.json'
 
 
 def pubdateToTimestamp(pubdate):
@@ -29,53 +30,35 @@ def readState(filename):
 
     return state
 
-last_run_newest_timestamp = None
+last_note_id = None
 
 if not os.path.exists('notes_state.txt'):
     print "No notes_state file found to poll note feed."
 
 while True:
-    this_run_newest_timestamp = None
     notes_state = readState('notes_state.txt')
-    last_run_newest_timestamp = int(notes_state.get('newest_timestamp', None))
-    item = dict()
+    last_note_id = int(notes_state.get('last_note_id', None))
 
-    source = urllib2.urlopen(url)
-    print "Requesting %s" % url
+    while True:
+        last_note_id += 1
+        url = url_templ % last_note_id
+        print "Requesting %s" % url
+        try:
+            result = urllib2.urlopen(url)
+            note = json.load(result)
+            attrs = note.get('properties')
+            geo = note.get('geometry').get('coordinates')
+            author = attrs['author'] if 'author' in attrs else 'Anonymous'
 
-    for event, elem in ElementTree.iterparse(source, events=('start', 'end')):
-        name = elem.tag
-        if event == 'end':
-            if name == 'title':
-                item['title'] = elem.text
-            elif name == 'author':
-                item['author'] = elem.text
-            elif name == '{http://www.w3.org/2003/01/geo/wgs84_pos#}lat':
-                item['lat'] = float(elem.text)
-            elif name == '{http://www.w3.org/2003/01/geo/wgs84_pos#}long':
-                item['lon'] = float(elem.text)
-            elif name == 'link':
-                item['link'] = elem.text
-            elif name == 'pubDate':
-                item['time'] = pubdateToTimestamp(elem.text)
-            elif name == 'description':
-                item['description'] = elem.text
-            elif name == 'item':
-                if this_run_newest_timestamp is None or item['time'] > this_run_newest_timestamp:
-                    this_run_newest_timestamp = item['time']
+            print "%s created a new note near %s, %s: %s: %s" % (author, geo[1], geo[0], attrs['url'].replace('api.openstreetmap', 'osm'), attrs['comments'][0]['text'][:50])
 
-                if last_run_newest_timestamp is not None and last_run_newest_timestamp == this_run_newest_timestamp:
-                    print "Last run had a newest time of %s and this run was %s, so stopping here." % (last_run_newest_timestamp, this_run_newest_timestamp)
-                    break
+        except urllib2.URLError, e:
+            if e.code == 404:
+                print "%s doesn't exist. Stopping." % last_note_id
+                last_note_id -= 1
+                break
 
-                if item['title'].startswith('new note'):
-                    author = item['author'] if 'author' in item else 'Anonymous'
-                    print "%s created a new note near %s, %s: %s: %s" % (author, item['lat'], item['lon'], item['link'].replace('api.openstreetmap', 'osm'), item['description'])
-                item = dict()
-
-    if last_run_newest_timestamp != this_run_newest_timestamp:
-        last_run_newest_timestamp = this_run_newest_timestamp
-        with open('notes_state.txt', 'w') as f:
-            f.write('newest_timestamp=%s\n' % last_run_newest_timestamp)
+    with open('notes_state.txt', 'w') as f:
+        f.write('last_note_id=%s\n' % last_note_id)
 
     time.sleep(60)
