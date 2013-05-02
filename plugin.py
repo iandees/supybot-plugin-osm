@@ -261,6 +261,7 @@ class OSM(callbacks.Plugin):
                 try:
                     result = urllib2.urlopen(url)
                     note = json.load(result)
+                    log.info("Note was %s" % json.dumps(note))
                     attrs = note.get('properties')
                     geo = note.get('geometry').get('coordinates')
                     author = attrs['author'] if 'author' in attrs else 'Anonymous'
