@@ -277,6 +277,7 @@ class OSM(callbacks.Plugin):
                             if self.note_run_newest_time is not None and self.note_run_newest_time > item['time']:
                                 break
                         except AttributeError:
+                            log.info("The OSM plugin didn't have a note run time. This should only happen once.")
                             self.note_run_newest_time = None
 
                         if item['title'].startswith('new note'):
