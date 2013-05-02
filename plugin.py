@@ -220,6 +220,7 @@ class OSM(callbacks.Plugin):
         urldata = urllib2.urlopen(url)
 
         location = ""
+        country_code = None
         info = json.load(urldata)
         if 'address' in info:
             address = info.get('address')
