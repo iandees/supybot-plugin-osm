@@ -744,7 +744,7 @@ class OSM(callbacks.Plugin):
 
         updated = self.isoToTimestamp(timestamp)
 
-        response = "User %s last edited %s with changeset %s" % (author, self.prettyDate(updated), changeset_id)
+        response = "User %s last edited %s with changeset http://osm.org/browse/changeset/%s" % (author, self.prettyDate(updated), changeset_id)
 
         irc.reply(response.encode('utf-8'))
     lastedit = wrap(last_edit, ['anything'])
