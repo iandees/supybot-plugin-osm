@@ -272,6 +272,9 @@ class OSM(callbacks.Plugin):
                     location = ""
                     country_code = None
 
+                    if stathat:
+                        stathat.ez_post_count('ian.dees@gmail.com', 'new notes', 1, attrs['date_created'])
+
                     try:
                         country_code, location = self.reverse_geocode(geo[1], geo[0])
                     except urllib2.HTTPError as e:
