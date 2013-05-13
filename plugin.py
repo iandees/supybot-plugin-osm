@@ -358,6 +358,7 @@ class OSM(callbacks.Plugin):
                     age = (now - last_modified).seconds
                     if age > 3600:
                         del seen_changesets[id]
+                        continue
 
                     total_changes = cs_data['total_changes']
                     node_changes = cs_data.get('node', {}).get('total_changes', 0)
