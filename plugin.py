@@ -171,7 +171,7 @@ class OSM(callbacks.Plugin):
     def _start_polling(self):
         log.info('Start polling.')
         schedule.addPeriodicEvent(self._minutely_diff_poll, 60, now=True, name='minutely_poll')
-        schedule.addPeriodicEvent(self._notes_rss_poll, 300, now=True, name='notes_rss_poll')
+        schedule.addPeriodicEvent(self._notes_rss_poll, 60, now=True, name='notes_rss_poll')
 
     def _stop_polling(self):
         log.info('Stop polling.')
@@ -243,9 +243,6 @@ class OSM(callbacks.Plugin):
 
             location = " near %s" % (location)
             location = location.encode('utf-8')
-
-        if len(location) > 0 and len(location) < 26:
-            log.info('Location "%s" was too short. Response to %s was: %s' % (location, url, json.dumps(info)))
 
         return (country_code, location)
 
