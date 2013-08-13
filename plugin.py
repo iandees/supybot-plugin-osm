@@ -118,17 +118,6 @@ def prettyDate(d):
         return '{0} hours ago'.format(s/3600)
 
 
-def isoToTimestamp(isotime):
-    t = datetime.datetime.strptime(isotime, "%Y-%m-%dT%H:%M:%SZ")
-    return calendar.timegm(t.utctimetuple())
-
-
-def pubdateToTimestamp(pubdate):
-    # Wed, 01 May 2013 18:51:34 +0000
-    t = datetime.datetime.strptime(pubdate, "%a, %d %B %Y %H:%M:%S +0000")
-    return calendar.timegm(t.utctimetuple())
-
-
 def parseOsm(source, handler):
     for event, elem in ElementTree.iterparse(source, events=('start', 'end')):
         if event == 'start':
@@ -323,7 +312,7 @@ class OSM(callbacks.Plugin):
                         log.info("%s doesn't exist. Stopping." % last_note_id)
                         last_note_id -= 1
 
-                        if datetime.datetime.utcnow() - last_note_time > 3600:
+                        if (datetime.datetime.utcnow() - last_note_time) > 3600:
                             msg = ircmsgs.privmsg('iandees', "No new notes in 1 hour.")
                             world.ircs[0].queueMsg(msg)
 
@@ -395,8 +384,7 @@ class OSM(callbacks.Plugin):
                 now = datetime.datetime.utcnow()
                 cs_flags = []
                 for (id, cs_data) in seen_changesets.items():
-                    last_modified = datetime.datetime.utcfromtimestamp(cs_data['last_modified'])
-                    age = (now - last_modified).seconds
+                    age = (now - cs_data['last_modified']).total_seconds()
                     if age > 3600:
                         del seen_changesets[id]
                         continue
