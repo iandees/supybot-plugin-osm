@@ -256,7 +256,7 @@ class OSM(callbacks.Plugin):
 
             notes_state = self.readState('notes_state.txt')
             last_note_id = int(notes_state.get('last_note_id', None))
-            last_note_time = isoToTimestamp(notes_state.get('last_note_timestamp'))
+            last_note_time = isoToTimestamp(notes_state.get('last_note_timestamp', ''))
 
             while True:
                 last_note_id += 1
