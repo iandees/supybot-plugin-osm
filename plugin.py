@@ -296,7 +296,7 @@ class OSM(callbacks.Plugin):
                         log.info("%s doesn't exist. Stopping." % last_note_id)
                         last_note_id -= 1
 
-                        if (datetime.utcnow() - last_note_time).total_seconds() > 3600:
+                        if (datetime.datetime.utcnow() - last_note_time).total_seconds() > 3600:
                             msg = ircmsgs.privmsg('iandees', "No new notes in 1 hour.")
                             world.ircs[0].queueMsg(msg)
 
