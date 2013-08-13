@@ -277,9 +277,6 @@ class OSM(callbacks.Plugin):
                         stathat.ez_post_count('ian.dees@gmail.com', 'new notes', 1, attrs['date_created'])
 
                     last_note_time = isoToTimestamp(attrs['date_created'])
-                    if (datetime.utcnow() - last_note_time).total_seconds() > 3600:
-                        msg = ircmsgs.privmsg('iandees', "No new notes in 1 hour.")
-                        world.ircs[0].queueMsg(msg)
 
                     try:
                         country_code, location = self.reverse_geocode(geo[1], geo[0])
@@ -297,6 +294,11 @@ class OSM(callbacks.Plugin):
                     if e.code == 404:
                         log.info("%s doesn't exist. Stopping." % last_note_id)
                         last_note_id -= 1
+
+                        if (datetime.utcnow() - last_note_time).total_seconds() > 3600:
+                            msg = ircmsgs.privmsg('iandees', "No new notes in 1 hour.")
+                            world.ircs[0].queueMsg(msg)
+
                         break
 
             with open('notes_state.txt', 'w') as f:
