@@ -312,8 +312,9 @@ class OSM(callbacks.Plugin):
                         log.info("%s doesn't exist. Stopping." % last_note_id)
                         last_note_id -= 1
 
+                        log.info("Last note time is %s" % type(last_note_time))
                         if (datetime.datetime.utcnow() - last_note_time).total_seconds() > 3600:
-                            msg = ircmsgs.privmsg('iandees', "No new notes in 1 hour.")
+                            msg = ircmsgs.privmsg('iandees', "No new notes since %s." % prettyDate(last_note_time))
                             world.ircs[0].queueMsg(msg)
 
                         break
@@ -497,7 +498,7 @@ class OSM(callbacks.Plugin):
         except urllib2.HTTPError as e:
             if e.code == 410:
                 last_mod = datetime.datetime.strptime(e.headers.get('Last-Modified'), '%a, %d %b %Y %H:%M:%S %Z')
-                irc.reply('Node %s was deleted %s ago.' % (node_id, self.prettyDate(last_mod)))
+                irc.reply('Node %s was deleted %s ago.' % (node_id, prettyDate(last_mod)))
             elif e.code == 404:
                 irc.error('Node %s was not found.' % (node_id))
             else:
@@ -530,7 +531,7 @@ class OSM(callbacks.Plugin):
         response = "Node %s: version %s by %s edited %s and has %s http://osm.org/browse/node/%s" % (node_id,
                                                                           version,
                                                                           username,
-                                                                          self.prettyDate(timestamp),
+                                                                          prettyDate(timestamp),
                                                                           tag_str,
                                                                           node_id)
 
@@ -552,7 +553,7 @@ class OSM(callbacks.Plugin):
         except urllib2.HTTPError as e:
             if e.code == 410:
                 last_mod = datetime.datetime.strptime(e.headers.get('Last-Modified'), '%a, %d %b %Y %H:%M:%S %Z')
-                irc.reply('Way %s was deleted %s ago.' % (way_id, self.prettyDate(last_mod)))
+                irc.reply('Way %s was deleted %s ago.' % (way_id, prettyDate(last_mod)))
             elif e.code == 404:
                 irc.error('Way %s was not found.' % (way_id))
             else:
@@ -590,7 +591,7 @@ class OSM(callbacks.Plugin):
             nd_refs_str = "%d nodes" % (len(nd_refs))
 
         response = "Way %s: version %s by %s edited %s with %s and %s http://osm.org/browse/way/%s" % \
-                (way_id, version, username, self.prettyDate(timestamp), nd_refs_str, tag_str, way_id)
+                (way_id, version, username, prettyDate(timestamp), nd_refs_str, tag_str, way_id)
 
         irc.reply(response.encode('utf-8'))
     way = wrap(way, ['int'])
@@ -610,7 +611,7 @@ class OSM(callbacks.Plugin):
         except urllib2.HTTPError as e:
             if e.code == 410:
                 last_mod = datetime.datetime.strptime(e.headers.get('Last-Modified'), '%a, %d %b %Y %H:%M:%S %Z')
-                irc.reply('Relation %s was deleted %s ago.' % (relation_id, self.prettyDate(last_mod)))
+                irc.reply('Relation %s was deleted %s ago.' % (relation_id, prettyDate(last_mod)))
             elif e.code == 404:
                 irc.error('Relation %s was not found.' % (relation_id))
             else:
@@ -648,7 +649,7 @@ class OSM(callbacks.Plugin):
             members_str = "%d members" % (len(members))
 
         response = "Relation %s: version %s by %s edited %s with %s and %s http://osm.org/browse/relation/%s" % \
-                (relation_id, version, username, self.prettyDate(timestamp), members_str, tag_str, relation_id)
+                (relation_id, version, username, prettyDate(timestamp), members_str, tag_str, relation_id)
 
         irc.reply(response.encode('utf-8'))
     relation = wrap(relation, ['int'])
@@ -699,7 +700,7 @@ class OSM(callbacks.Plugin):
             tag_str = 'tags %s' % (', '.join(tag_strings))
 
         response = "Changeset %s by %s opened %s %s with %s" % \
-                (changeset_id, username, self.prettyDate(created), length_str, tag_str)
+                (changeset_id, username, prettyDate(created), length_str, tag_str)
 
         irc.reply(response.encode('utf-8'))
     changeset = wrap(changeset, ['int'])
@@ -749,7 +750,7 @@ class OSM(callbacks.Plugin):
 
         updated = isoToDatetime(timestamp)
 
-        response = "User %s last edited %s with changeset http://osm.org/browse/changeset/%s" % (author, self.prettyDate(updated), changeset_id)
+        response = "User %s last edited %s with changeset http://osm.org/browse/changeset/%s" % (author, prettyDate(updated), changeset_id)
 
         irc.reply(response.encode('utf-8'))
     lastedit = wrap(last_edit, ['anything'])
