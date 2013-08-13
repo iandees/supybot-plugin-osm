@@ -255,6 +255,7 @@ class OSM(callbacks.Plugin):
                 return
 
             notes_state = self.readState('notes_state.txt')
+            log.info('Note state is %s' % json.dumps(notes_state))
             last_note_id = int(notes_state.get('last_note_id', None))
             last_note_time = isoToTimestamp(notes_state.get('last_note_timestamp', ''))
 
@@ -302,6 +303,7 @@ class OSM(callbacks.Plugin):
                         break
 
             with open('notes_state.txt', 'w') as f:
+                log.info('Writing note state.')
                 f.write('last_note_id=%s\n' % last_note_id)
                 f.write('last_note_timestamp=%s\n' % last_note_time.utcformat())
 
