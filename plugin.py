@@ -53,7 +53,7 @@ class OscHandler():
             self.primitive['changeset'] = int(attributes['changeset'])
             self.primitive['uid'] = int(attributes.get('uid'))
             self.primitive['user'] = attributes.get('user').encode('utf-8')
-            self.primitive['timestamp'] = isoToTimestamp(attributes['timestamp'])
+            self.primitive['timestamp'] = isoToDatetime(attributes['timestamp'])
             self.primitive['tags'] = {}
             self.primitive['action'] = self.action
         if name == 'node':
@@ -89,6 +89,33 @@ class OscHandler():
             self.relations[self.primitive['id']] = self.primitive
         if name in ('node', 'way', 'relation'):
             self.primitive = {}
+
+
+def isoToDatetime(isotime):
+    return datetime.datetime.strptime(isotime, "%Y-%m-%dT%H:%M:%SZ")
+
+
+def prettyDate(d):
+    diff = datetime.datetime.utcnow() - d
+    s = diff.seconds
+    if diff.days > 7 or diff.days < 0:
+        return 'on %s' % (d.strftime('%d %b %Y'))
+    elif diff.days == 1:
+        return '1 day ago'
+    elif diff.days > 1:
+        return '{0} days ago'.format(diff.days)
+    elif s <= 1:
+        return 'just now'
+    elif s < 60:
+        return '{0} seconds ago'.format(s)
+    elif s < 120:
+        return '1 minute ago'
+    elif s < 3600:
+        return '{0} minutes ago'.format(s/60)
+    elif s < 7200:
+        return '1 hour ago'
+    else:
+        return '{0} hours ago'.format(s/3600)
 
 
 def isoToTimestamp(isotime):
@@ -257,7 +284,7 @@ class OSM(callbacks.Plugin):
             notes_state = self.readState('notes_state.txt')
             log.info('Note state is %s' % json.dumps(notes_state))
             last_note_id = int(notes_state.get('last_note_id', None))
-            last_note_time = isoToTimestamp(notes_state.get('last_note_timestamp', ''))
+            last_note_time = isoToDatetime(notes_state.get('last_note_timestamp', ''))
 
             while True:
                 last_note_id += 1
@@ -277,7 +304,7 @@ class OSM(callbacks.Plugin):
                     if stathat:
                         stathat.ez_post_count('ian.dees@gmail.com', 'new notes', 1, attrs['date_created'])
 
-                    last_note_time = isoToTimestamp(attrs['date_created'])
+                    last_note_time = isoToDatetime(attrs['date_created'])
 
                     try:
                         country_code, location = self.reverse_geocode(geo[1], geo[0])
@@ -296,7 +323,7 @@ class OSM(callbacks.Plugin):
                         log.info("%s doesn't exist. Stopping." % last_note_id)
                         last_note_id -= 1
 
-                        if (datetime.datetime.utcnow() - last_note_time).total_seconds() > 3600:
+                        if datetime.datetime.utcnow() - last_note_time > 3600:
                             msg = ircmsgs.privmsg('iandees', "No new notes in 1 hour.")
                             world.ircs[0].queueMsg(msg)
 
@@ -454,31 +481,6 @@ class OSM(callbacks.Plugin):
         except Exception as e:
             log.error("Exception processing new users: %s" % traceback.format_exc(e))
 
-    def isoToTimestamp(self, isotime):
-        return datetime.datetime.strptime(isotime, "%Y-%m-%dT%H:%M:%SZ")
-
-    def prettyDate(self, d):
-        diff = datetime.datetime.utcnow() - d
-        s = diff.seconds
-        if diff.days > 7 or diff.days < 0:
-            return 'on %s' % (d.strftime('%d %b %Y'))
-        elif diff.days == 1:
-            return '1 day ago'
-        elif diff.days > 1:
-            return '{0} days ago'.format(diff.days)
-        elif s <= 1:
-            return 'just now'
-        elif s < 60:
-            return '{0} seconds ago'.format(s)
-        elif s < 120:
-            return '1 minute ago'
-        elif s < 3600:
-            return '{0} minutes ago'.format(s/60)
-        elif s < 7200:
-            return '1 hour ago'
-        else:
-            return '{0} hours ago'.format(s/3600)
-
     def tagKeySortKey(self, key):
         ret = key.lower()
         if ret.startswith('name'):
@@ -519,7 +521,7 @@ class OSM(callbacks.Plugin):
 
         username = node_element.attrib['user']
         version = node_element.attrib['version']
-        timestamp = self.isoToTimestamp(node_element.attrib['timestamp'])
+        timestamp = isoToDatetime(node_element.attrib['timestamp'])
 
         tag_strings = []
         tag_elems = node_element.findall('tag')
@@ -574,7 +576,7 @@ class OSM(callbacks.Plugin):
 
         username = way_element.attrib['user']
         version = way_element.attrib['version']
-        timestamp = self.isoToTimestamp(way_element.attrib['timestamp'])
+        timestamp = isoToDatetime(way_element.attrib['timestamp'])
 
         tag_strings = []
         tag_elems = way_element.findall('tag')
@@ -632,7 +634,7 @@ class OSM(callbacks.Plugin):
 
         username = relation_element.attrib['user']
         version = relation_element.attrib['version']
-        timestamp = self.isoToTimestamp(relation_element.attrib['timestamp'])
+        timestamp = isoToDatetime(relation_element.attrib['timestamp'])
 
         tag_strings = []
         tag_elems = relation_element.findall('tag')
@@ -684,12 +686,12 @@ class OSM(callbacks.Plugin):
 
         username = changeset_element.attrib['user']
         currently_open = changeset_element.attrib['open']
-        created = self.isoToTimestamp(changeset_element.attrib['created_at'])
+        created = isoToDatetime(changeset_element.attrib['created_at'])
 
         if currently_open == 'true':
             length_str = "(still open)"
         elif currently_open == 'false':
-            closed = self.isoToTimestamp(changeset_element.attrib['closed_at'])
+            closed = isoToDatetime(changeset_element.attrib['closed_at'])
             length_str = "open %s minutes" % ((closed - created).seconds / 60)
 
         tag_strings = []
@@ -757,7 +759,7 @@ class OSM(callbacks.Plugin):
         # Strip off the word "Changeset " from the title to get the number
         changeset_id = entry_id[46:]
 
-        updated = self.isoToTimestamp(timestamp)
+        updated = isoToDatetime(timestamp)
 
         response = "User %s last edited %s with changeset http://osm.org/browse/changeset/%s" % (author, self.prettyDate(updated), changeset_id)
 
