@@ -296,10 +296,12 @@ class OSM(callbacks.Plugin):
 
                     last_note_time = date_created
 
-                    try:
-                        country_code, location = self.reverse_geocode(geo[1], geo[0])
-                    except urllib2.HTTPError as e:
-                        log.warn("HTTP problem when looking for note location: %s" % (e))
+                    if (datetime.datetime.utcnow() - last_note_time).total_seconds() < 3600:
+                        # Only reverse-geocode for newer notes
+                        try:
+                            country_code, location = self.reverse_geocode(geo[1], geo[0])
+                        except urllib2.HTTPError as e:
+                            log.warn("HTTP problem when looking for note location: %s" % (e))
 
                     response = "%s posted a new note%s %s" % (author, location, link)
                     log.info("Response is %s" % response)
