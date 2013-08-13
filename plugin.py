@@ -320,9 +320,9 @@ class OSM(callbacks.Plugin):
                         break
 
             with open('notes_state.txt', 'w') as f:
-                log.info('Writing note state.')
+                log.info('Writing note state: Time is %s' % last_note_time.isoformat())
                 f.write('last_note_id=%s\n' % last_note_id)
-                f.write('last_note_timestamp=%s\n' % last_note_time.utcformat())
+                f.write('last_note_timestamp=%s\n' % last_note_time.isoformat())
 
         except Exception as e:
             log.error("Exception processing new notes: %s" % traceback.format_exc(e))
