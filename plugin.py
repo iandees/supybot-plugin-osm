@@ -285,15 +285,16 @@ class OSM(callbacks.Plugin):
                     attrs = note.get('properties')
                     opening_comment = attrs['comments'][0]
                     author = opening_comment['user'].encode('utf-8') if 'user' in opening_comment else 'Anonymous'
+                    date_created = datetime.datetime.strptime(attrs['date_created'], "%Y-%m-%d %H:%M:%S %Z")
                     geo = note.get('geometry').get('coordinates')
                     link = 'http://osm.org/browse/note/%d' % last_note_id
                     location = ""
                     country_code = None
 
                     if stathat:
-                        stathat.ez_post_count('ian.dees@gmail.com', 'new notes', 1, attrs['date_created'])
+                        stathat.ez_post_count('ian.dees@gmail.com', 'new notes', 1, date_created.isoformat()+'Z')
 
-                    last_note_time = isoToDatetime(attrs['date_created'])
+                    last_note_time = date_created
 
                     try:
                         country_code, location = self.reverse_geocode(geo[1], geo[0])
@@ -312,7 +313,6 @@ class OSM(callbacks.Plugin):
                         log.info("%s doesn't exist. Stopping." % last_note_id)
                         last_note_id -= 1
 
-                        log.info("Last note time is %s" % type(last_note_time))
                         if (datetime.datetime.utcnow() - last_note_time).total_seconds() > 3600:
                             msg = ircmsgs.privmsg('iandees', "No new notes since %s." % prettyDate(last_note_time))
                             world.ircs[0].queueMsg(msg)
@@ -320,9 +320,8 @@ class OSM(callbacks.Plugin):
                         break
 
             with open('notes_state.txt', 'w') as f:
-                log.info('Writing note state: Time is %s' % last_note_time.isoformat())
                 f.write('last_note_id=%s\n' % last_note_id)
-                f.write('last_note_timestamp=%s\n' % last_note_time.isoformat())
+                f.write('last_note_timestamp=%sZ\n' % last_note_time.isoformat())
 
         except Exception as e:
             log.error("Exception processing new notes: %s" % traceback.format_exc(e))
