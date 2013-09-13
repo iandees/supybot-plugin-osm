@@ -146,6 +146,7 @@ _new_uid_edit_region_channels = {
     "#osm-ie": ("ie",),
     "#osm-it": ("it",),
     "#osm-ja": ("jp",),
+    "#osm-ke": ("ke",),
     "#osm-lv": ("lv",),
     "#osm-ly": ("ly",),
     "#osm-nl": ("nl",),
