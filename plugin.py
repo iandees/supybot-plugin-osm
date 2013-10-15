@@ -144,11 +144,13 @@ _new_uid_edit_region_channels = {
     "#osm-gb": ("gb",),
     "#osm-ht": ("ht",),
     "#osm-ie": ("ie",),
+    "#osm-is": ("is",),
     "#osm-it": ("it",),
     "#osm-ja": ("jp",),
     "#osm-ke": ("ke",),
     "#osm-lv": ("lv",),
     "#osm-ly": ("ly",),
+    "#osm-ni": ("ni",),
     "#osm-nl": ("nl",),
     "#osm-no": ("no",),
     "#osm-nl": ("nl",),
@@ -164,8 +166,10 @@ _new_uid_edit_region_channels = {
 }
 
 _note_edit_region_channels = {
-    "#osm-us": ("us",),
     "#osm-ie": ("ie",),
+    "#osm-is": ("is",),
+    "#osm-ni": ("ni",),
+    "#osm-us": ("us",),
 }
 
 
