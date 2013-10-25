@@ -170,6 +170,7 @@ _note_edit_region_channels = {
     "#osm-is": ("is",),
     "#osm-ni": ("ni",),
     "#osm-us": ("us",),
+    "#osm-za": ("za",),
 }
 
 
