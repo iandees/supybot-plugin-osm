@@ -796,7 +796,7 @@ class OSM(callbacks.Plugin):
                 data = json.load(j)
 
                 response = "Tag %s=%s appears %s times in the planet. http://taginfo.osm.org/tags/%s" % (k, v, data['all']['count'], urllib.quote("%s=%s" % (k,v)))
-            irc.reply(response.encode('utf-8'))
+            irc.reply(response)
         except urllib2.URLError as e:
             irc.error('There was an error connecting to the taginfo server. Try again later.')
             return
