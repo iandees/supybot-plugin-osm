@@ -754,7 +754,7 @@ class OSM(callbacks.Plugin):
             return
 
         # Strip off the word "Changeset " from the title to get the number
-        changeset_id = entry_id[46:]
+        changeset_id = entry_id[39:]
 
         updated = isoToDatetime(timestamp)
 
