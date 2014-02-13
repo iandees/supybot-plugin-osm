@@ -294,7 +294,7 @@ class OSM(callbacks.Plugin):
                     author = opening_comment['user'].encode('utf-8') if 'user' in opening_comment else 'Anonymous'
                     date_created = datetime.datetime.strptime(attrs['date_created'], "%Y-%m-%d %H:%M:%S %Z")
                     geo = note.get('geometry').get('coordinates')
-                    link = 'http://osm.org/browse/note/%d' % last_note_id
+                    link = 'http://osm.org/note/%d' % last_note_id
                     location = ""
                     country_code = None
 
@@ -427,7 +427,7 @@ class OSM(callbacks.Plugin):
                     if cs_id in seen_changesets and seen_changesets[cs_id].get('alerted_already'):
                         continue
 
-                    response = "Changeset %s is weird because %s. http://osm.org/browse/changeset/%s" % (cs_id, reason, cs_id)
+                    response = "Changeset %s is weird because %s. http://osm.org/changeset/%s" % (cs_id, reason, cs_id)
 
                     log.info(response)
                     for chan in irc.state.channels:
@@ -465,7 +465,7 @@ class OSM(callbacks.Plugin):
                     except urllib2.HTTPError as e:
                         log.warn("HTTP problem when looking for edit location: %s" % (e))
 
-                response = "%s just started editing%s with changeset http://osm.org/browse/changeset/%s" % (data['username'], location, data['changeset'])
+                response = "%s just started editing%s with changeset http://osm.org/changeset/%s" % (data['username'], location, data['changeset'])
                 log.info(response)
                 irc = world.ircs[0]
                 for chan in irc.state.channels:
@@ -536,7 +536,7 @@ class OSM(callbacks.Plugin):
         elif len(tag_strings) > 1:
             tag_str = 'tags %s' % (', '.join(tag_strings))
 
-        response = "Node %s: version %s by %s edited %s and has %s http://osm.org/browse/node/%s" % (node_id,
+        response = "Node %s: version %s by %s edited %s and has %s http://osm.org/node/%s" % (node_id,
                                                                           version,
                                                                           username,
                                                                           prettyDate(timestamp),
@@ -598,7 +598,7 @@ class OSM(callbacks.Plugin):
         elif len(nd_refs) > 1:
             nd_refs_str = "%d nodes" % (len(nd_refs))
 
-        response = "Way %s: version %s by %s edited %s with %s and %s http://osm.org/browse/way/%s" % \
+        response = "Way %s: version %s by %s edited %s with %s and %s http://osm.org/way/%s" % \
                 (way_id, version, username, prettyDate(timestamp), nd_refs_str, tag_str, way_id)
 
         irc.reply(response.encode('utf-8'))
@@ -656,7 +656,7 @@ class OSM(callbacks.Plugin):
         elif len(members) > 1:
             members_str = "%d members" % (len(members))
 
-        response = "Relation %s: version %s by %s edited %s with %s and %s http://osm.org/browse/relation/%s" % \
+        response = "Relation %s: version %s by %s edited %s with %s and %s http://osm.org/relation/%s" % \
                 (relation_id, version, username, prettyDate(timestamp), members_str, tag_str, relation_id)
 
         irc.reply(response.encode('utf-8'))
@@ -758,7 +758,7 @@ class OSM(callbacks.Plugin):
 
         updated = isoToDatetime(timestamp)
 
-        response = "User %s last edited %s with changeset http://osm.org/browse/changeset/%s" % (author, prettyDate(updated), changeset_id)
+        response = "User %s last edited %s with changeset http://osm.org/changeset/%s" % (author, prettyDate(updated), changeset_id)
 
         irc.reply(response.encode('utf-8'))
     lastedit = wrap(last_edit, ['anything'])
