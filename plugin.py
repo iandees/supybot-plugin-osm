@@ -309,7 +309,7 @@ class OSM(callbacks.Plugin):
                         try:
                             country_code, location = self.reverse_geocode(geo[1], geo[0])
                         except urllib2.HTTPError as e:
-                            log.warn("HTTP problem when looking for note location: %s" % (e))
+                            log.error("HTTP problem when looking for note location: %s" % (e))
 
                     response = "%s posted a new note%s %s" % (author, location, link)
                     log.info("Response is %s" % response)
@@ -464,7 +464,7 @@ class OSM(callbacks.Plugin):
                     try:
                         country_code, location = self.reverse_geocode(data['lat'], data['lon'])
                     except urllib2.HTTPError as e:
-                        log.warn("HTTP problem when looking for edit location: %s" % (e))
+                        log.error("HTTP problem when looking for edit location: %s" % (e))
 
                 response = "%s just started editing%s with changeset http://osm.org/changeset/%s" % (data['username'], location, data['changeset'])
                 log.info(response)
