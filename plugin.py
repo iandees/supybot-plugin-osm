@@ -166,6 +166,7 @@ _new_uid_edit_region_channels = {
 }
 
 _note_edit_region_channels = {
+    "#osm-ca": ("ca",),
     "#osm-gb": ("gb",),
     "#osm-ie": ("ie",),
     "#osm-is": ("is",),
