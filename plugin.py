@@ -230,7 +230,8 @@ class OSM(callbacks.Plugin):
         sqnStr = str(nextSqn).zfill(9)
         url = "http://planet.openstreetmap.org/replication/minute/%s/%s/%s.state.txt" % (sqnStr[0:3], sqnStr[3:6], sqnStr[6:9])
         try:
-            u = urllib2.urlopen(url)
+            req = urllib2.Request(url, headers=headers={'User-Agent': 'Supybot OSM Plugin 1.0 (https://github.com/iandees/supybot-plugin-osm/)'})
+            u = urllib2.urlopen(req)
             statefile = open('state.txt', 'w')
             statefile.write(u.read())
             statefile.close()
@@ -242,7 +243,8 @@ class OSM(callbacks.Plugin):
 
     def reverse_geocode(self, lat, lon):
         url = 'http://nominatim.openstreetmap.org/reverse?format=json&lat=%s&lon=%s' % (lat, lon)
-        urldata = urllib2.urlopen(url)
+        req = urllib2.Request(url, headers={'User-Agent': 'Supybot OSM Plugin 1.0 (https://github.com/iandees/supybot-plugin-osm/)'})
+        urldata = urllib2.urlopen(req)
 
         location = ""
         country_code = None
@@ -288,7 +290,8 @@ class OSM(callbacks.Plugin):
                 url = url_templ % last_note_id
                 log.info("Requesting %s" % url)
                 try:
-                    result = urllib2.urlopen(url)
+                    req = urllib2.Request(url, headers={'User-Agent': 'Supybot OSM Plugin 1.0 (https://github.com/iandees/supybot-plugin-osm/)'})
+                    result = urllib2.urlopen(req)
                     note = json.load(result)
                     attrs = note.get('properties')
                     opening_comment = attrs['comments'][0]
@@ -355,7 +358,8 @@ class OSM(callbacks.Plugin):
                 url = "http://planet.openstreetmap.org/replication/minute/%s/%s/%s.osc.gz" % (sqnStr[0:3], sqnStr[3:6], sqnStr[6:9])
 
                 log.info("Downloading change file (%s)." % (url))
-                content = urllib2.urlopen(url)
+                req = urllib2.Request(url, headers={'User-Agent': 'Supybot OSM Plugin 1.0 (https://github.com/iandees/supybot-plugin-osm/)'})
+                content = urllib2.urlopen(req)
                 content = StringIO.StringIO(content.read())
                 gzipper = gzip.GzipFile(fileobj=content)
 
@@ -503,7 +507,8 @@ class OSM(callbacks.Plugin):
             return
 
         try:
-            xml = urllib2.urlopen('%s/api/0.6/node/%d' % (baseUrl, node_id))
+            req = urllib2.Request('%s/api/0.6/node/%d' % (baseUrl, node_id), headers={'User-Agent': 'Supybot OSM Plugin 1.0 (https://github.com/iandees/supybot-plugin-osm/)'})
+            xml = urllib2.urlopen(req)
         except urllib2.HTTPError as e:
             if e.code == 410:
                 last_mod = datetime.datetime.strptime(e.headers.get('Last-Modified'), '%a, %d %b %Y %H:%M:%S %Z')
@@ -558,7 +563,8 @@ class OSM(callbacks.Plugin):
             return
 
         try:
-            xml = urllib2.urlopen('%s/api/0.6/way/%d' % (baseUrl, way_id))
+            req = urllib2.Request('%s/api/0.6/way/%d' % (baseUrl, way_id), headers={'User-Agent': 'Supybot OSM Plugin 1.0 (https://github.com/iandees/supybot-plugin-osm/)'})
+            xml = urllib2.urlopen(req)
         except urllib2.HTTPError as e:
             if e.code == 410:
                 last_mod = datetime.datetime.strptime(e.headers.get('Last-Modified'), '%a, %d %b %Y %H:%M:%S %Z')
@@ -616,7 +622,8 @@ class OSM(callbacks.Plugin):
             return
 
         try:
-            xml = urllib2.urlopen('%s/api/0.6/relation/%d' % (baseUrl, relation_id))
+            req = urllib2.Request('%s/api/0.6/relation/%d' % (baseUrl, relation_id), headers={'User-Agent': 'Supybot OSM Plugin 1.0 (https://github.com/iandees/supybot-plugin-osm/)'})
+            xml = urllib2.urlopen(req)
         except urllib2.HTTPError as e:
             if e.code == 410:
                 last_mod = datetime.datetime.strptime(e.headers.get('Last-Modified'), '%a, %d %b %Y %H:%M:%S %Z')
@@ -674,7 +681,8 @@ class OSM(callbacks.Plugin):
             return
 
         try:
-            xml = urllib2.urlopen('%s/api/0.6/changeset/%d' % (baseUrl, changeset_id))
+            req = urllib2.Request('%s/api/0.6/changeset/%d' % (baseUrl, changeset_id), headers={'User-Agent': 'Supybot OSM Plugin 1.0 (https://github.com/iandees/supybot-plugin-osm/)'})
+            xml = urllib2.urlopen(req)
         except urllib2.HTTPError as e:
             irc.error('Changeset %s was not found.' % (changeset_id))
             return
@@ -728,7 +736,8 @@ class OSM(callbacks.Plugin):
         quoted_uname = urllib.quote(quoted_uname)
 
         try:
-            xml = urllib2.urlopen('%s/user/%s/edits/feed' % (baseUrl, quoted_uname))
+            req = urllib2.Request('%s/user/%s/edits/feed' % (baseUrl, quoted_uname), headers={'User-Agent': 'Supybot OSM Plugin 1.0 (https://github.com/iandees/supybot-plugin-osm/)'})
+            xml = urllib2.urlopen(req)
         except urllib2.HTTPError as e:
             irc.error('Username %s was not found.' % (username))
             return
@@ -788,12 +797,14 @@ class OSM(callbacks.Plugin):
                 irc.error("I don't know how to parse that key/value pair.")
                 return
             elif v is None:
-                j = urllib2.urlopen('%s/api/2/db/keys/overview?key=%s' % (baseUrl, urllib.quote(k)), timeout=30.0)
+                req = urllib2.Request('%s/api/2/db/keys/overview?key=%s' % (baseUrl, urllib.quote(k)), headers={'User-Agent': 'Supybot OSM Plugin 1.0 (https://github.com/iandees/supybot-plugin-osm/)'})
+                j = urllib2.urlopen(req, timeout=30.0)
                 data = json.load(j)
 
                 response = "Tag %s has %s values and appears %s times in the planet. http://taginfo.osm.org/keys/%s" % (k, data['all']['values'], data['all']['count'], urllib.quote(k))
             else:
-                j = urllib2.urlopen('%s/api/2/db/tags/overview?key=%s&value=%s' % (baseUrl, urllib.quote(k), urllib.quote(v)), timeout=30.0)
+                req = urllib2.Request('%s/api/2/db/tags/overview?key=%s&value=%s' % (baseUrl, urllib.quote(k), urllib.quote(v)), headers={'User-Agent': 'Supybot OSM Plugin 1.0 (https://github.com/iandees/supybot-plugin-osm/)'})
+                j = urllib2.urlopen(req, timeout=30.0)
                 data = json.load(j)
 
                 response = "Tag %s=%s appears %s times in the planet. http://taginfo.osm.org/tags/%s" % (k, v, data['all']['count'], urllib.quote("%s=%s" % (k,v)))
