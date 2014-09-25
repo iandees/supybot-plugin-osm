@@ -800,17 +800,15 @@ class OSM(callbacks.Plugin):
                 irc.error("I don't know how to parse that key/value pair.")
                 return
             elif v is None:
-                req = urllib2.Request('%s/api/2/db/keys/overview?key=%s' % (baseUrl, urllib.quote(k)), headers={'User-Agent': userAgent})
+                req = urllib2.Request('%s/api/4/key/stats?key=%s' % (baseUrl, urllib.quote(k)), headers={'User-Agent': userAgent})
                 j = urllib2.urlopen(req, timeout=30.0)
                 data = json.load(j)
-
-                response = "Tag %s has %s values and appears %s times in the planet. http://taginfo.osm.org/keys/%s" % (k, data['all']['values'], data['all']['count'], urllib.quote(k))
+                response = "Tag %s has %s values and appears %s times in the planet. http://taginfo.osm.org/keys/%s" % (k, data['data'][0]['values'], data['data'][0]['count'], urllib.quote(k))
             else:
-                req = urllib2.Request('%s/api/2/db/tags/overview?key=%s&value=%s' % (baseUrl, urllib.quote(k), urllib.quote(v)), headers={'User-Agent': userAgent})
+                req = urllib2.Request('%s/api/4/tag/stats?key=%s&value=%s' % (baseUrl, urllib.quote(k), urllib.quote(v)), headers={'User-Agent': userAgent})
                 j = urllib2.urlopen(req, timeout=30.0)
                 data = json.load(j)
-
-                response = "Tag %s=%s appears %s times in the planet. http://taginfo.osm.org/tags/%s" % (k, v, data['all']['count'], urllib.quote("%s=%s" % (k,v)))
+                response = "Tag %s=%s appears %s times in the planet. http://taginfo.osm.org/tags/%s=%s" % (k, v, data['data'][0]['count'], urllib.quote(k), urllib.quote(v))
             irc.reply(response)
         except urllib2.URLError as e:
             irc.error('There was an error connecting to the taginfo server. Try again later.')
