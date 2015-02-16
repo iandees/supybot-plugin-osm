@@ -24,6 +24,7 @@ import urllib
 import xml.etree.cElementTree as ElementTree
 import os
 import json
+import re
 
 userAgent = 'Supybot OSM Plugin 1.0 (https://github.com/iandees/supybot-plugin-osm/)'
 stathatEmail = 'ian.dees@gmail.com'
@@ -178,6 +179,8 @@ _note_edit_region_channels = {
     "#osm-za": ("za",),
 }
 
+_note_cleaning_re = re.compile("\s+", flags=re.UNICODE)
+
 
 class OSM(callbacks.Plugin):
     """Add the help for "@plugin help OSM" here
@@ -277,6 +280,7 @@ class OSM(callbacks.Plugin):
 
     def _notes_rss_poll(self):
         url_templ = 'http://api.openstreetmap.org/api/0.6/notes/%d.json'
+        short_text_len = 64
 
         try:
             if not os.path.exists('notes_state.txt'):
@@ -299,6 +303,8 @@ class OSM(callbacks.Plugin):
                     attrs = note.get('properties')
                     opening_comment = attrs['comments'][0]
                     author = opening_comment['user'].encode('utf-8') if 'user' in opening_comment else 'Anonymous'
+                    full_text = _note_cleaning_re.sub(' ', opening_comment['text'])
+                    short_text = ((full_text[:short_text_len-1] + u'\u2026') if len(full_text) > short_text_len else full_text).encode('utf-8')
                     date_created = datetime.datetime.strptime(attrs['date_created'], "%Y-%m-%d %H:%M:%S %Z")
                     geo = note.get('geometry').get('coordinates')
                     link = 'http://osm.org/note/%d' % last_note_id
@@ -317,7 +323,7 @@ class OSM(callbacks.Plugin):
                         except urllib2.HTTPError as e:
                             log.error("HTTP problem when looking for note location: %s" % (e))
 
-                    response = "%s posted a new note%s %s" % (author, location, link)
+                    response = '%s posted a new note%s %s ("%s")' % (author, location, link, short_text)
                     log.info("Response is %s" % response)
                     irc = world.ircs[0]
                     for chan in irc.state.channels:
