@@ -312,7 +312,8 @@ class OSM(callbacks.Plugin):
                     country_code = None
 
                     if stathat:
-                        stathat.ez_post_count(stathatEmail, 'new notes', 1, date_created.isoformat()+'Z')
+                        ts = calendar.timegm(date_created.timetuple())
+                        stathat.ez_post_count(stathatEmail, 'new notes', 1, ts)
 
                     last_note_time = date_created
 
@@ -452,7 +453,9 @@ class OSM(callbacks.Plugin):
 
             log.info("There were %s users editing this time." % len(seen_uids))
             if stathat:
-                stathat.ez_post_value(stathatEmail, 'users editing this minute', len(seen_uids), state['timestamp'])
+                ts = isoToDatetime(state['timestamp'])
+                ts = calendar.timegm(ts.timetuple())
+                stathat.ez_post_value(stathatEmail, 'users editing this minute', len(seen_uids), ts)
 
             f = open('uid.txt', 'r')
             for line in f:
@@ -465,7 +468,9 @@ class OSM(callbacks.Plugin):
             f.close()
 
             if stathat:
-                stathat.ez_post_value(stathatEmail, 'new users this minute', len(seen_uids), state['timestamp'])
+                ts = isoToDatetime(state['timestamp'])
+                ts = calendar.timegm(ts.timetuple())
+                stathat.ez_post_value(stathatEmail, 'new users this minute', len(seen_uids), ts)
 
             f = open('uid.txt', 'a')
             for (uid, data) in seen_uids.iteritems():
