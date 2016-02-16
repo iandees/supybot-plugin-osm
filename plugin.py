@@ -163,6 +163,7 @@ _new_uid_edit_region_channels = {
     "#osm-ua": ("ua",),
     "#osm-us": ("us",),
     "#osm-za": ("za",),
+    "#maplesotho": ("ls",),
 }
 
 _note_edit_region_channels = {
