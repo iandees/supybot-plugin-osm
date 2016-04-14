@@ -302,10 +302,15 @@ class OSM(callbacks.Plugin):
                     result = urllib2.urlopen(req)
                     note = json.load(result)
                     attrs = note.get('properties')
-                    opening_comment = attrs['comments'][0]
-                    author = opening_comment['user'].encode('utf-8') if 'user' in opening_comment else 'Anonymous'
-                    full_text = _note_cleaning_re.sub(' ', opening_comment['text'])
-                    short_text = ((full_text[:short_text_len-1] + u'\u2026') if len(full_text) > short_text_len else full_text).encode('utf-8')
+                    if len(attrs['comments']) > 0:
+                        opening_comment = attrs['comments'][0]
+                        author = opening_comment['user'].encode('utf-8') if 'user' in opening_comment else 'Anonymous'
+                        full_text = _note_cleaning_re.sub(' ', opening_comment['text'])
+                        short_text = ((full_text[:short_text_len-1] + u'\u2026') if len(full_text) > short_text_len else full_text).encode('utf-8')
+                    else:
+                        author = "Unknown"
+                        short_text = "-No comment specified-"
+
                     date_created = datetime.datetime.strptime(attrs['date_created'], "%Y-%m-%d %H:%M:%S %Z")
                     geo = note.get('geometry').get('coordinates')
                     link = 'http://osm.org/note/%d' % last_note_id
