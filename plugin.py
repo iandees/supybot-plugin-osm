@@ -314,7 +314,7 @@ class OSM(callbacks.Plugin):
 
                     date_created = datetime.datetime.strptime(attrs['date_created'], "%Y-%m-%d %H:%M:%S %Z")
                     geo = note.get('geometry').get('coordinates')
-                    link = 'http://osm.org/note/%d' % last_note_id
+                    link = 'https://osm.org/note/%d' % last_note_id
                     location = ""
                     country_code = None
 
