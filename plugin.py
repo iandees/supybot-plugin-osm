@@ -130,6 +130,7 @@ def parseOsm(source, handler):
             handler.endElement(elem.tag)
         elem.clear()
 
+
 _new_uid_edit_region_channels = {
     "#osm-ar": ("ar",),
     "#osm-au": ("au",),
@@ -168,6 +169,10 @@ _new_uid_edit_region_channels = {
     "#osm-us": ("us",),
     "#osm-za": ("za",),
     "#maplesotho": ("ls",),
+}
+
+_all_edit_region_channels = {
+
 }
 
 _note_edit_region_channels = {
@@ -363,6 +368,7 @@ class OSM(callbacks.Plugin):
                 return
 
             seen_uids = {}
+            new_changesets = {}
             seen_changesets = self.seen_changesets
 
             state = self.readState('state.txt')
@@ -389,7 +395,10 @@ class OSM(callbacks.Plugin):
                     action = prim['action']
                     prim_type = prim['type']
 
-                    changeset_data = seen_changesets.get(changeset_id, {})
+                    changeset_data = seen_changesets.get(changeset_id)
+                    if not changeset_data:
+                        new_changesets[changeset_id] = {'username': prim['user']}
+                        changeset_data = {}
                     cs_type_data = changeset_data.get(prim_type, {})
                     cs_type_data[action] = cs_type_data.get(action, 0) + 1
                     cs_type_data['total_changes'] = cs_type_data.get('total_changes', 0) + 1
@@ -402,12 +411,16 @@ class OSM(callbacks.Plugin):
                     if uid in seen_uids:
                         continue
                     else:
-                        seen_uids[str(prim['uid'])] = {'changeset': prim['changeset'],
-                                                       'username': prim['user']}
+                        seen_uids[uid] = {'changeset': prim['changeset'],
+                                          'username': prim['user']}
 
-                    if 'lat' in prim and 'lat' not in seen_uids[str(prim['uid'])]:
-                        seen_uids[str(prim['uid'])]['lat'] = prim['lat']
-                        seen_uids[str(prim['uid'])]['lon'] = prim['lon']
+                    if prim_type == 'node':
+                        if 'lat' not in seen_uids[uid]:
+                            seen_uids[uid]['lat'] = prim['lat']
+                            seen_uids[uid]['lon'] = prim['lon']
+                        if 'lat' not in new_changesets[changeset_id]:
+                            new_changesets[changeset_id]['lat'] = prim['lat']
+                            new_changesets[changeset_id]['lon'] = prim['lon']
 
                 #log.info("Changeset actions: %s" % json.dumps(seen_changesets))
 
@@ -500,6 +513,23 @@ class OSM(callbacks.Plugin):
                         world.ircs[0].queueMsg(msg)
 
             f.close()
+
+            for (changeset_id, data) in new_changesets.iteritems():
+                location = ""
+                country_code = None
+                if 'lat' in data:
+                    try:
+                        country_code, location = self.reverse_geocode(data['lat'], data['lon'])
+                    except urllib2.HTTPError as e:
+                        log.error("HTTP problem when looking for changeset location: %s" % (e))
+
+                response = "%s edited%s with changeset http://osm.org/changeset/%s" % (data['username'], location, data['changeset'])
+                log.info(response)
+                irc = world.ircs[0]
+                for chan in irc.state.channels:
+                    if country_code in _all_edit_region_channels.get(chan, ()):
+                        msg = ircmsgs.privmsg(chan, response)
+                        irc.queueMsg(msg)
 
         except Exception as e:
             log.error("Exception processing new users: %s" % traceback.format_exc(e))
