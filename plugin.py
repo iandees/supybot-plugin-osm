@@ -418,7 +418,8 @@ class OSM(callbacks.Plugin):
                         if 'lat' not in seen_uids[uid]:
                             seen_uids[uid]['lat'] = prim['lat']
                             seen_uids[uid]['lon'] = prim['lon']
-                        if 'lat' not in new_changesets[changeset_id]:
+                        if changeset_id in new_changesets and \
+                                'lat' not in new_changesets[changeset_id]:
                             new_changesets[changeset_id]['lat'] = prim['lat']
                             new_changesets[changeset_id]['lon'] = prim['lon']
 
