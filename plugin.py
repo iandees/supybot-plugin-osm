@@ -145,7 +145,7 @@ _new_uid_edit_region_channels = {
     "#osm-do": ("do",),
     "#osm-es": ("es",),
     "#osm-fi": ("fi",),
-    "#osm-fr": ("fr",),
+    "#osm-fr-annonce": ("fr",),
     "#osm-gb": ("gb",),
     "#osm-ht": ("ht",),
     "#osm-ie": ("ie",),
@@ -177,6 +177,7 @@ _all_edit_region_channels = {
 
 _note_edit_region_channels = {
     "#osm-ca": ("ca",),
+    "#osm-fr-annonce": ("fr",),
     "#osm-gb": ("gb",),
     "#osm-ie": ("ie",),
     "#osm-is": ("is",),
