@@ -351,11 +351,41 @@ class OSM(callbacks.Plugin):
                         log.info("%s doesn't exist. Stopping." % last_note_id)
                         last_note_id -= 1
 
+                        # If it's been 15 minutes, check the RSS feed for the latest note
+                        if (datetime.datetime.utcnow() - last_note_time).total_seconds() > 900:
+                            note_feed_url = "http://api.openstreetmap.org/api/0.6/notes/feed"
+                            req = urllib2.Request(note_feed_url, headers={'User-Agent': userAgent})
+                            xml = urllib2.urlopen(req)
+                            tree = ElementTree.ElementTree(file=xml)
+
+                            note_id = None
+                            note_time = None
+                            for item in tree.iterfind('channel/item'):
+                                title = item.findtext('title')
+                                if 'new note' in title:
+                                    note_time_str = item.findtext('pubDate')
+                                    note_time = datetime.datetime.strptime(note_time_str, '%a, %d %b %Y %H:%M:%S +0000')
+
+                                    if last_note_time > note_time:
+                                        # Stop iteration if the note at this point in the feed is older than the most recent
+                                        # so note_id ends up with the oldest note *after* the last_note_time
+                                        break
+
+                                    guid = item.findtext('guid')
+                                    note_id = int(guid.rsplit('/', 1)[1].split('#', 1)[0])
+
+                            if note_id and note_time:
+                                last_note_time = note_time
+                                last_note_id = note_id
+
+                        # If it's been 60 minutes, tell the admin something's broken
                         if (datetime.datetime.utcnow() - last_note_time).total_seconds() > 3600:
                             msg = ircmsgs.privmsg(privmsgNick, "No new notes since %s." % prettyDate(last_note_time))
                             world.ircs[0].queueMsg(msg)
 
                         break
+                    else:
+                        raise
 
             with open('notes_state.txt', 'w') as f:
                 f.write('last_note_id=%s\n' % last_note_id)
