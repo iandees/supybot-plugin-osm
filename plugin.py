@@ -347,6 +347,9 @@ class OSM(callbacks.Plugin):
                             msg = ircmsgs.privmsg(chan, response)
                             world.ircs[0].queueMsg(msg)
                 except urllib2.URLError, e:
+                    if e.code == 410:
+                        log.info("%s is gone. Skipping." % last_note_id)
+                        last_note_id += 1
                     if e.code == 404:
                         log.info("%s doesn't exist. Stopping." % last_note_id)
                         last_note_id -= 1
