@@ -244,7 +244,7 @@ class OSM(callbacks.Plugin):
         # Download the next state file
         nextSqn = int(currentState['sequenceNumber']) + 1
         sqnStr = str(nextSqn).zfill(9)
-        url = "http://planet.openstreetmap.org/replication/minute/%s/%s/%s.state.txt" % (sqnStr[0:3], sqnStr[3:6], sqnStr[6:9])
+        url = "https://planet.openstreetmap.org/replication/minute/%s/%s/%s.state.txt" % (sqnStr[0:3], sqnStr[3:6], sqnStr[6:9])
         try:
             req = urllib2.Request(url, headers={'User-Agent': userAgent})
             u = urllib2.urlopen(req)
@@ -258,7 +258,7 @@ class OSM(callbacks.Plugin):
         return True
 
     def reverse_geocode(self, lat, lon):
-        url = 'http://nominatim.openstreetmap.org/reverse?format=json&lat=%s&lon=%s' % (lat, lon)
+        url = 'https://nominatim.openstreetmap.org/reverse?format=json&lat=%s&lon=%s' % (lat, lon)
         req = urllib2.Request(url, headers={'User-Agent': userAgent})
         urldata = urllib2.urlopen(req)
 
@@ -289,7 +289,7 @@ class OSM(callbacks.Plugin):
         return (country_code, location)
 
     def _notes_rss_poll(self):
-        url_templ = 'http://api.openstreetmap.org/api/0.6/notes/%d.json'
+        url_templ = 'https://api.openstreetmap.org/api/0.6/notes/%d.json'
         short_text_len = 64
 
         try:
@@ -356,7 +356,7 @@ class OSM(callbacks.Plugin):
 
                         # If it's been 15 minutes, check the RSS feed for the latest note
                         if (datetime.datetime.utcnow() - last_note_time).total_seconds() > 900:
-                            note_feed_url = "http://api.openstreetmap.org/api/0.6/notes/feed"
+                            note_feed_url = "https://api.openstreetmap.org/api/0.6/notes/feed"
                             req = urllib2.Request(note_feed_url, headers={'User-Agent': userAgent})
                             xml = urllib2.urlopen(req)
                             tree = ElementTree.ElementTree(file=xml)
@@ -414,7 +414,7 @@ class OSM(callbacks.Plugin):
 
                 # Grab the next sequence number and build a URL out of it
                 sqnStr = state['sequenceNumber'].zfill(9)
-                url = "http://planet.openstreetmap.org/replication/minute/%s/%s/%s.osc.gz" % (sqnStr[0:3], sqnStr[3:6], sqnStr[6:9])
+                url = "https://planet.openstreetmap.org/replication/minute/%s/%s/%s.osc.gz" % (sqnStr[0:3], sqnStr[3:6], sqnStr[6:9])
 
                 log.info("Downloading change file (%s)." % (url))
                 req = urllib2.Request(url, headers={'User-Agent': userAgent})
@@ -499,7 +499,7 @@ class OSM(callbacks.Plugin):
                     if cs_id in seen_changesets and seen_changesets[cs_id].get('alerted_already'):
                         continue
 
-                    response = "Changeset %s is weird because %s. http://osm.org/changeset/%s" % (cs_id, reason, cs_id)
+                    response = "Changeset %s is weird because %s. https://osm.org/changeset/%s" % (cs_id, reason, cs_id)
 
                     log.info(response)
                     for chan in irc.state.channels:
@@ -541,7 +541,7 @@ class OSM(callbacks.Plugin):
                     except urllib2.HTTPError as e:
                         log.error("HTTP problem when looking for edit location: %s" % (e))
 
-                response = "%s just started editing%s with changeset http://osm.org/changeset/%s" % (data['username'], location, data['changeset'])
+                response = "%s just started editing%s with changeset https://osm.org/changeset/%s" % (data['username'], location, data['changeset'])
                 log.info(response)
                 irc = world.ircs[0]
                 for chan in irc.state.channels:
@@ -560,7 +560,7 @@ class OSM(callbacks.Plugin):
                     except urllib2.HTTPError as e:
                         log.error("HTTP problem when looking for changeset location: %s" % (e))
 
-                response = "%s edited%s with changeset http://osm.org/changeset/%s" % (data['username'], location, data['changeset'])
+                response = "%s edited%s with changeset https://osm.org/changeset/%s" % (data['username'], location, data['changeset'])
                 log.info(response)
                 irc = world.ircs[0]
                 for chan in irc.state.channels:
@@ -588,7 +588,7 @@ class OSM(callbacks.Plugin):
         """<node_id>
 
         Shows information about the specified OSM node ID."""
-        baseUrl = "http://osm.org"
+        baseUrl = "https://osm.org"
 
         if not node_id:
             irc.error('You forgot to give me a node ID.')
@@ -630,7 +630,7 @@ class OSM(callbacks.Plugin):
         elif len(tag_strings) > 1:
             tag_str = 'tags %s' % (', '.join(tag_strings))
 
-        response = "Node %s: version %s by %s edited %s and has %s http://osm.org/node/%s" % (node_id,
+        response = "Node %s: version %s by %s edited %s and has %s https://osm.org/node/%s" % (node_id,
                                                                           version,
                                                                           username,
                                                                           prettyDate(timestamp),
@@ -644,7 +644,7 @@ class OSM(callbacks.Plugin):
         """<way_id>
 
         Shows information about the specified OSM way ID."""
-        baseUrl = "http://osm.org"
+        baseUrl = "https://osm.org"
 
         if not way_id:
             irc.error('You forgot to give me a way ID.')
@@ -693,7 +693,7 @@ class OSM(callbacks.Plugin):
         elif len(nd_refs) > 1:
             nd_refs_str = "%d nodes" % (len(nd_refs))
 
-        response = "Way %s: version %s by %s edited %s with %s and %s http://osm.org/way/%s" % \
+        response = "Way %s: version %s by %s edited %s with %s and %s https://osm.org/way/%s" % \
                 (way_id, version, username, prettyDate(timestamp), nd_refs_str, tag_str, way_id)
 
         irc.reply(response.encode('utf-8'))
@@ -703,7 +703,7 @@ class OSM(callbacks.Plugin):
         """<relation_id>
 
         Shows information about the specified OSM relation ID."""
-        baseUrl = "http://osm.org"
+        baseUrl = "https://osm.org"
 
         if not relation_id:
             irc.error('You forgot to give me a relation ID.')
@@ -752,7 +752,7 @@ class OSM(callbacks.Plugin):
         elif len(members) > 1:
             members_str = "%d members" % (len(members))
 
-        response = "Relation %s: version %s by %s edited %s with %s and %s http://osm.org/relation/%s" % \
+        response = "Relation %s: version %s by %s edited %s with %s and %s https://osm.org/relation/%s" % \
                 (relation_id, version, username, prettyDate(timestamp), members_str, tag_str, relation_id)
 
         irc.reply(response.encode('utf-8'))
@@ -762,7 +762,7 @@ class OSM(callbacks.Plugin):
         """<changeset_id>
 
         Shows information about the specified OSM changeset ID."""
-        baseUrl = "http://osm.org"
+        baseUrl = "https://osm.org"
 
         if not changeset_id:
             irc.error('You forgot to give me a changeset ID.')
@@ -814,7 +814,7 @@ class OSM(callbacks.Plugin):
         """<username>
 
         Shows information about the last edit for the given user."""
-        baseUrl = "http://osm.org"
+        baseUrl = "https://osm.org"
 
         if not username:
             irc.error('You forgot to give me a username.')
@@ -856,7 +856,7 @@ class OSM(callbacks.Plugin):
 
         updated = isoToDatetime(timestamp)
 
-        response = "User %s last edited %s with changeset http://osm.org/changeset/%s" % (author, prettyDate(updated), changeset_id)
+        response = "User %s last edited %s with changeset https://osm.org/changeset/%s" % (author, prettyDate(updated), changeset_id)
 
         irc.reply(response.encode('utf-8'))
     lastedit = wrap(last_edit, ['anything'])
@@ -865,7 +865,7 @@ class OSM(callbacks.Plugin):
         """<tag key>[=<tag value>|*]
 
         Shows information about the specified tag key/value combination."""
-        baseUrl = "http://taginfo.openstreetmap.org"
+        baseUrl = "https://taginfo.openstreetmap.org"
 
         if not tag_query:
             irc.error('You forgot to give me a tag_query.')
@@ -888,12 +888,12 @@ class OSM(callbacks.Plugin):
                 req = urllib2.Request('%s/api/4/key/stats?key=%s' % (baseUrl, urllib.quote(k)), headers={'User-Agent': userAgent})
                 j = urllib2.urlopen(req, timeout=30.0)
                 data = json.load(j)
-                response = "Tag %s has %s values and appears %s times in the planet. http://taginfo.osm.org/keys/%s" % (k, data['data'][0]['values'], data['data'][0]['count'], urllib.quote(k))
+                response = "Tag %s has %s values and appears %s times in the planet. https://taginfo.osm.org/keys/%s" % (k, data['data'][0]['values'], data['data'][0]['count'], urllib.quote(k))
             else:
                 req = urllib2.Request('%s/api/4/tag/stats?key=%s&value=%s' % (baseUrl, urllib.quote(k), urllib.quote(v)), headers={'User-Agent': userAgent})
                 j = urllib2.urlopen(req, timeout=30.0)
                 data = json.load(j)
-                response = "Tag %s=%s appears %s times in the planet. http://taginfo.osm.org/tags/%s=%s" % (k, v, data['data'][0]['count'], urllib.quote(k), urllib.quote(v))
+                response = "Tag %s=%s appears %s times in the planet. https://taginfo.osm.org/tags/%s=%s" % (k, v, data['data'][0]['count'], urllib.quote(k), urllib.quote(v))
             irc.reply(response)
         except urllib2.URLError as e:
             irc.error('There was an error connecting to the taginfo server. Try again later.')
