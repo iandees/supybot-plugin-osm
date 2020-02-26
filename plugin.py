@@ -346,11 +346,11 @@ class OSM(callbacks.Plugin):
                         if chan == "#osm-bot" or country_code in _note_edit_region_channels.get(chan, ()):
                             msg = ircmsgs.privmsg(chan, response)
                             world.ircs[0].queueMsg(msg)
-                except urllib2.URLError, e:
+                except urllib2.HTTPError as e:
                     if e.code == 410:
                         log.info("%s is gone. Skipping." % last_note_id)
                         last_note_id += 1
-                    if e.code == 404:
+                    elif e.code == 404:
                         log.info("%s doesn't exist. Stopping." % last_note_id)
                         last_note_id -= 1
 
