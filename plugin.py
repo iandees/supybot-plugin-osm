@@ -541,7 +541,7 @@ class OSM(callbacks.Plugin):
                     except urllib2.HTTPError as e:
                         log.error("HTTP problem when looking for edit location: %s" % (e))
 
-                response = "%s just started editing%s with changeset https://osm.org/changeset/%s" % (data['username'], location, data['changeset'])
+                response = "%s just started editing%s with changeset https://overpass-api.de/achavi/?changeset=%s" % (data['username'], location, data['changeset'])
                 log.info(response)
                 irc = world.ircs[0]
                 for chan in irc.state.channels:
@@ -560,7 +560,7 @@ class OSM(callbacks.Plugin):
                     except urllib2.HTTPError as e:
                         log.error("HTTP problem when looking for changeset location: %s" % (e))
 
-                response = "%s edited%s with changeset https://osm.org/changeset/%s" % (data['username'], location, data['changeset'])
+                response = "%s edited%s with changeset https://overpass-api.de/achavi/?changeset=%s" % (data['username'], location, data['changeset'])
                 log.info(response)
                 irc = world.ircs[0]
                 for chan in irc.state.channels:
